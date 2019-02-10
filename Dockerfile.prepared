@@ -1,0 +1,6 @@
+FROM jgoldfar/cms-test-image:base
+MAINTAINER Jonathan Goldfarb <jgoldfar@my.fit.edu>
+
+# TODO: Install LaTeX packages with TLMGR
+# TODO: Install git repos in this layer?
+# TODO: Install Julia envs in this layer? Requires knowledge of existing Julia v0.7 installation envs?
