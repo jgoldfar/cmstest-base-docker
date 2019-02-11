@@ -9,6 +9,8 @@ push-%: build-%
 
 base: build-base push-base
 
+prepared: build-prepared push-prepared
+
 MainRepoPath?=
 ifeq ($(MainRepoPath),) # MainRepoPath is empty
 main:

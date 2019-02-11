@@ -40,4 +40,6 @@ Why should I use this container?
 
 ## Container Descriptions
 
-* `base` packages listed above
+* `base` packages listed above (most slowly changing/slowest release cadence)
+
+* `prepared` includes `base` and the minimal set of CTAN packages, Julia envs, etc. to compile everything else (these change more slowly, one would hope)

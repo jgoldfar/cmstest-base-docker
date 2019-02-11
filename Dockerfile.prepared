@@ -2,5 +2,22 @@ FROM jgoldfar/cms-test-image:base
 MAINTAINER Jonathan Goldfarb <jgoldfar@my.fit.edu>
 
 # TODO: Install LaTeX packages with TLMGR
+RUN tlmgr init-usertree \
+    && tlmgr update --self \
+    && tlmgr install \
+      chktex \
+      latexmk \
+      url \
+      nag \
+      natbib \
+      pgf \
+      pgfplots \
+      baskervald \
+      ec \
+      xkeyval \
+      nfssext-cfr \
+      ms \
+      xcolor \
+      svn-prov
 # TODO: Install git repos in this layer?
 # TODO: Install Julia envs in this layer? Requires knowledge of existing Julia v0.7 installation envs?
