@@ -50,7 +50,6 @@ Dockerfile.main: Makefile
 	echo "FROM ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared" > $@
 	echo "MAINTAINER Jonathan Goldfarb <jgoldfar@gmail.com>" >> $@
 	echo "WORKDIR ${InternalRepoDir}" >> $@
-	echo "RUN mkdir -p ${InternalReportDir}" >> $@
 	echo "COPY . ." >> $@
 
 # Derive REPORTID from HG node hash from MainRepoPath
@@ -60,7 +59,9 @@ test-main:
 	@echo "Usage: make $@ MainRepoPath=/path/to/documents ExternalReportDir=/path/to/testdir"
 
 else # ExternalReportDir is not empty
+CMSMakefile=misc/julia/CMSTest/ex/crontab/Makefile
 test-main:
+	mkdir -p ${ExternalReportDir}/${REPORTID}
 	docker run \
 		--tty \
 		--attach stderr \
@@ -72,9 +73,25 @@ test-main:
 		--env JULIA_ARGS="--project=${InternalRepoDir}/misc/julia/CMSTest" \
 		--volume ${ExternalReportDir}:${InternalReportDir} \
 		${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:main \
-		make -f misc/julia/CMSTest/ex/crontab/Makefile \
-		instantiate check-not-tested lock test release-lock
+		make -f ${CMSMakefile} \
+		instantiate check-not-tested lock test release-lock \
+		VERBOSE=true
 
+push-test-main:
+	docker run \
+		--tty \
+		--attach stderr \
+		--attach stdout \
+		--env REPOROOT=${InternalRepoDir} \
+		--env REPORTDIR=${InternalReportDir} \
+		--env REPORTID=${REPORTID} \
+		--env JULIA_LOAD_PATH=${InternalRepoDir}/misc/julia \
+		--env JULIA_ARGS="--project=${InternalRepoDir}/misc/julia/CMSTest" \
+		--volume ${ExternalReportDir}:${InternalReportDir} \
+		${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:main \
+		make -f ${CMSMakefile} \
+		check-tested generate-summaries update-test-readme record-summaries \
+		VERBOSE=true
 endif # ExternalReportDir isempty if statement
 endif # MainRepoPath isempty if statement
 
