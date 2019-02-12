@@ -1,9 +1,16 @@
 FROM jgoldfar/cms-test-image:base
 MAINTAINER Jonathan Goldfarb <jgoldfar@my.fit.edu>
 
-# TODO: Install LaTeX packages with TLMGR
+RUN apt-get -qq update \
+    && apt-get -qq -y --no-install-recommends install \
+      wget \
+      openssh-client \
+      git \
+      mercurial
+
+# Install LaTeX packages for whole system
 RUN tlmgr init-usertree \
-    && tlmgr update --self \
+    && tlmgr update --self\
     && tlmgr install \
       chktex \
       latexmk \
@@ -19,5 +26,27 @@ RUN tlmgr init-usertree \
       ms \
       xcolor \
       svn-prov
-# TODO: Install git repos in this layer?
+
+# Clone all git repositories intended to ship along with CMS
+ARG ssh_prv_key
+
+COPY gitproj .
+COPY gitproj.makefile .
+
+RUN mkdir -p /root/.ssh \
+    && chmod 0700 /root/.ssh \
+    && ssh-keyscan github.com > /root/.ssh/known_hosts \
+    && ssh-keyscan bitbucket.org >> /root/.ssh/known_hosts \
+    && echo "${ssh_prv_key}" > /root/.ssh/id_rsa \
+    && chmod 0600 /root/.ssh/id_rsa \
+    && make -f gitproj.makefile cloneAll GitProjFile=gitproj BaseDir=$(pwd) \
+    && rm -f /root/.ssh/id_rsa gitproj gitproj.makefile
+
+RUN apt-get -qq -y remove \
+      wget \
+      openssh-client \
+    && apt-get -qq -y autoremove \
+    && apt-get autoclean \
+    && rm -rf /var/lib/apt/lists/* /var/log/dpkg.log
+
 # TODO: Install Julia envs in this layer? Requires knowledge of existing Julia v0.7 installation envs?

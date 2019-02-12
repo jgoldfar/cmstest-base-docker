@@ -21,10 +21,12 @@ RUN curl -L http://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz -
     rm -rf minimal.profile install-tl-*
 
 # Finish LaTeX Installation
-ENV PATH="/usr/local/texlive/2018/bin/x86_64-linuxmusl:${PATH}"
+
+
+ENV PATH="/usr/local/texlive/2018/bin/x86_64-linux/:${PATH}"
+
 RUN apt-get -qq -y remove \
       python \
-      perl \
       curl \
       wget \
     && apt-get -qq -y autoremove \
@@ -73,7 +75,7 @@ RUN mkdir -p ${MaximaPath} && \
     cd ${MaximaPath} && \
     ./bootstrap && \
     ./configure --enable-sbcl --prefix=/usr/local --enable-quiet-build && \
-    make install && \
+    make install > maxima-build.log 2>&1 && \
     rm -rf ${MaximaPath}
 
 # Finish Maxima installation
