@@ -43,7 +43,6 @@ RUN mkdir -p /root/.ssh \
     && rm -f /root/.ssh/id_rsa gitproj gitproj.makefile
 
 RUN apt-get -qq -y remove \
-      wget \
       openssh-client \
     && apt-get -qq -y autoremove \
     && apt-get autoclean \
