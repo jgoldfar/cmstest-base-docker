@@ -28,6 +28,8 @@ RUN tlmgr init-usertree \
       svn-prov
 
 # Clone all git repositories intended to ship along with CMS
+
+# Pass in ssh_prv_key, the private key. Make sure this is encrypted on e.g. Travis!
 ARG ssh_prv_key
 
 COPY gitproj .

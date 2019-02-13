@@ -42,4 +42,14 @@ Why should I use this container?
 
 * `base` packages listed above (most slowly changing/slowest release cadence)
 
-* `prepared` includes `base` and the minimal set of CTAN packages, Julia envs, etc. to compile everything else (these change more slowly, one would hope)
+* `prepared` includes `base` and the minimal set of CTAN packages, Julia envs, git repositories, etc. to compile everything else (these change more slowly, one would hope.) To build this image, you'll need to provide a private SSH key for which the public key is saved to Github and Bitbucket. To do this, I ran
+
+```shell
+ssh-keygen -t rsa -b 4096 -C "jgoldfar+docker@gmail.com" -f id_rsa
+cat id_rsa
+cat id_rsa.pub
+```
+and copied the private key to e.g. an encrypted file that can only be unlocked on Travis.
+Note that this means one could explore those repositories without having actual pull
+access, but this isn't too much of an issue because most of those projects are public
+or semi-public anyways.
