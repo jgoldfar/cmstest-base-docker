@@ -37,6 +37,7 @@ Why should I use this container?
 
 - Easy setup
 - Julia v0.7, Maxima + SBCL, Miniconda3, and LaTeX-Minimal all available on PATH
+- Interoperates with [CMSTest](https://bitbucket.org/jgoldfar/cmstest.jl/) v3.0.1+ (i.e. commits newer than revision 6b9245d80691)
 
 ## Container Descriptions
 

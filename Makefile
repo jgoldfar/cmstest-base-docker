@@ -1,6 +1,6 @@
 #TODO: Add test that we're using a new-enough version of CMSTest
-# to run this process. Known to work well against CMSTest v3.0.0
-# or versions of CMSTest newer than commit 229fda99e585
+# to run this process. Known to work well against CMSTest v3.0.1
+# or versions of CMSTest newer than commit 6b9245d80691
 HG?=$(shell which hg)
 PWD=$(shell pwd)
 
@@ -242,7 +242,10 @@ ${ExternalReportDir}/.git:
 # Note that this process does not pull new commits into ExternalReportDir, or 
 # push any commits out, so that will still have to be managed externally.
 # TODO: Add git pull & git push here to make this target self-contained.
-record-test-main: ${FULL_REPORT_DIR}/build.log ${ExternalReportDir}/.git
+record-test-main: ${FULL_REPORT_DIR}/committed
+
+${FULL_REPORT_DIR}/committed: ${FULL_REPORT_DIR}/build.log ${ExternalReportDir}/.git
+	$(MAKE) main-is-built || $(MAKE) build-main
 	[ ! -d "${FULL_REPORT_DIR}/.LOCK" ]
 	mkdir "${FULL_REPORT_DIR}/.LOCK" && \
 	docker run \
