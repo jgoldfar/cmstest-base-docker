@@ -1,23 +1,43 @@
+# CMS-Image Makefile: Orchestrate tests run against CMSTest, which handles
+# automatic test discovery for "large" heterogeneous repositories.
+#
+# This makefile is still not safe against interrupts in the generation process
+# practically anywhere. So e.g. restarting the host machine will cause things to be
+# left in an undefined state, which may require a run of `make force-cleanup`.
+
 #TODO: Add test that we're using a new-enough version of CMSTest
 # to run this process. Known to work well against CMSTest v3.0.1
 # or versions of CMSTest newer than commit 6b9245d80691
+
+
+## Start configurable variables
 HG?=$(shell which hg)
 PWD=$(shell pwd)
 
+# Set explicit shell
 export SHELL:=/bin/bash
+
 # Attempt to ensure we can cleanup after a process failure
 export SHELLOPTS:=$(if $(SHELLOPTS),$(SHELLOPTS):)pipefail:errexit
 
+# Username on Docker Hub
 DOCKER_USERNAME?=jgoldfar
+
+# Base image name for uploaded artifacts
 DOCKER_REPO_BASE:=cms-test-image
+
+# This is the default branch we use to report these test results, as well as
+# a suffix for the test directory.
+Report_Repo_Branch?=$(shell uname -s)
 
 # Local path to SSH key authenticated to Github and Bitbucket
 SSH_PRV_KEY_FILE?=/home/jgoldfar/.ssh/id_rsa
 
 # Local path to updated main repository
 MainRepoPath?=/Users/jgoldfar/Documents
+
 # Local path to test output directory
-ExternalReportDir?=/Users/jgoldfar/test-$(shell uname -s)
+ExternalReportDir?=/Users/jgoldfar/test-${Report_Repo_Branch}
 
 # Internal path to test output directory
 InternalReportDir?=/Tests
@@ -29,8 +49,16 @@ CMSMakefile=misc/julia/CMSTest/ex/crontab/Makefile
 # If FORCE_UPDATE is nonempty, we'll update over any existing changes.
 FORCE_UPDATE?=
 
+# Generic usage string. Use Make's subst command to interpolate the target.
+USAGE_STRING:="Usage: make __tmp__ MainRepoPath=/path/to/Documents ExternalReportDir=/path/to/testdir"
+## End Configurable Variables
+
+
+
+## Start main set of targets
 usage:
-	@echo "Usage Not Yet Defined"
+	@echo $(subst __tmp__,[TARGET],${USAGE_STRING})
+
 
 ##
 # "Generic" image build
@@ -44,6 +72,7 @@ push-%: build-%
 
 base: build-base push-base
 
+
 ##
 # "Prepared" image build
 build-prepared: Dockerfile.prepared
@@ -51,9 +80,6 @@ build-prepared: Dockerfile.prepared
 		-f $< \
 		--build-arg ssh_prv_key="`cat $(SSH_PRV_KEY_FILE)`" \
 		-t ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared .
-
-# Capture the PATH variable from the "Prepared" image
-Prepared_Image_Path:=$(shell docker run --attach stdout --volume ${PWD}/LocalSupportScripts:/LocalSupportScripts ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared /LocalSupportScripts/echo-path)
 
 prepared: build-prepared push-prepared
 
@@ -63,7 +89,8 @@ prepared: build-prepared push-prepared
 # We first test if MainRepoPath isempty; if so, emit a usage message and bail.
 ifeq ($(MainRepoPath),) 
 build-main:
-	$(error "Usage: make $@ MainRepoPath=/path/to/Documents")
+	@echo $(subst __tmp__,$@,${USAGE_STRING})
+	exit 1
 
 ##
 # When MainRepoPath is not empty, we can build the main image
@@ -83,35 +110,66 @@ REPO_TARBALL:=${InternalRepoStem}.tar
 # We'll generate test output into the directory below:
 FULL_REPORT_DIR:=${ExternalReportDir}/${REPORTID}
 
+# This target just shows the make variables we would use to run a particular build,
+# as well as some general status information.
+status:
+	@echo REPORTID: ${REPORTID}
+	@echo REPORTDATE: ${REPORTDATE}
+	@echo MainRepoPath: ${MainRepoPath}
+	@echo FULL_REPORT_DIR: ${FULL_REPORT_DIR}
+	@echo MAIN_REPO_IMAGE: ${MAIN_REPO_IMAGE}
+	@[ -f "${FULL_REPORT_DIR}/stderr.log" ] \
+	&& echo "REPORTID Tested: True (has stderr.log)" \
+	|| echo "REPORTID Tested: False (has no stderr.log)"
+	@[ -f "${FULL_REPORT_DIR}/build.log" ] \
+	&& echo "REPORTID Tested: True (has build.log)" \
+	|| echo "REPORTID Tested: False (has no build.log)"
+	@[ -f "${FULL_REPORT_DIR}/committed" ] \
+	&& echo "REPORTID Committed: True (has committed)" \
+	|| echo "REPORTID Committed: False (has no committed)"
+	@[ -d "${FULL_REPORT_DIR}/.LOCK" ] \
+	&& echo "REPORTID Test Running (Locked): True" \
+	|| echo "REPORTID Test Running (Locked): False"
+	@[ -d "${MainRepoPath}/.LOCK" ] \
+	&& echo "MainRepo Currently Exporting (Locked): True" \
+	|| echo "MainRepo Currently Exporting (Locked): False"
+	@[ -d "${FULL_REPORT_DIR}" ] \
+	&& echo "FULL_REPORT_DIR Contents (ls -l):" \
+	&& ls -l ${FULL_REPORT_DIR} \
+	|| echo "FULL_REPORT_DIR Contents: Empty"
 
 # Build an image containing a snapshot of ${MainRepoPath} at the given REPORTID
 # NOTE The generated tarball name must match the directory under `/` that we will
 # be running the generated tests from. This is enforced by generating the tarball
 # into $(notdir ${InternalRepoStem}).
 # Note on this tarball:
-#     Tested tar, tgz, and zip, and tarballs are fastest to generate.
-#TODO: Test exporting to a new directory to avoid the cost of tarring and
-# untarring the repository.
-#TODO: This makefile is still not safe against interrupts in the generation process
-# practically anywhere. So e.g. restarting the host machine will cause things to be
-# left in an undefined state, which may require a run of `make force-cleanup`.
+#     Tested raw files, tar, tgz, and zip, and tarballs are fastest to generate.
+#     However, this isn't the end of the story: tarball generation seems highly
+#     variables, despite it running what seems a deterministic process.
+#     Creating a tarball takes anywhere between 10s and 40s, while creating a
+#     "clean" archive directory tends to take ~18s each time. Seems like a worth-
+#     while tradeoff to sometimes pay the higher price to export raw files; we
+#     could have a builder that extracts the repo to a tagged subdirectory of this
+#     one at some point on the future.
 build-main: Dockerfile.main ${REPO_TARBALL}
 	[ ! -d "${MainRepoPath}/.LOCK" ]
 	docker build \
 		--no-cache \
 		-f Dockerfile.main \
 		-t ${MAIN_REPO_IMAGE} .
+	$(RM) ${REPO_TARBALL}
 
 ${REPO_TARBALL}:
 	[ ! -d "${MainRepoPath}/.LOCK" ]
-	mkdir "${MainRepoPath}/.LOCK" && \
-	hg archive --time \
+	mkdir "${MainRepoPath}/.LOCK" \
+	&& hg archive --time \
 		--cwd ${MainRepoPath} \
 		--rev ${REPORTID} \
 		--subrepos \
+		--verbose \
 		--exclude "ugrad/climate dynamics/" \
-		$(PWD)/$@ || \
-	(ret=$$?; rmdir "${MainRepoPath}/.LOCK" && exit $$ret)
+		${PWD}/$@ \
+	|| (ret=$$?; rmdir "${MainRepoPath}/.LOCK" && exit $$ret)
 	rmdir "${MainRepoPath}/.LOCK"
 
 # The dockerfile used to generate the main image is minimal; we just import the repository
@@ -138,9 +196,14 @@ maybe-update-main-repo:
 	&& cd "${MainRepoPath}" \
 	&& hg status -mard \
 	&& hg pull \
-	&& ${REPO_UPDATE_CMD} || \
-	(ret=$$?; rmdir "${MainRepoPath}/.LOCK" && exit $$ret)
+	&& ${REPO_UPDATE_CMD} \
+	|| (ret=$$?; rmdir "${MainRepoPath}/.LOCK" && exit $$ret)
 	rmdir "${MainRepoPath}/.LOCK"
+
+force-clean-main-repo:
+	[ -d "${MainRepoPath}/.LOCK" ] && rmdir "${MainRepoPath}/.LOCK"
+	cd "${MainRepoPath}" \
+	&& hg update --clean
 
 ##
 # Check that ExternalReportDir isempty, MainRepoPath is not empty
@@ -148,13 +211,16 @@ maybe-update-main-repo:
 # cannot run in this situation.)
 ifeq ($(ExternalReportDir),) 
 test-main:
-	@echo "Usage: make $@ MainRepoPath=/path/to/documents ExternalReportDir=/path/to/testdir"
+	@echo $(subst __tmp__,$@,${USAGE_STRING})
+	exit 1
 
 push-test-main:
-	@echo "Usage: make $@ MainRepoPath=/path/to/documents ExternalReportDir=/path/to/testdir"
+	@echo $(subst __tmp__,$@,${USAGE_STRING})
+	exit 1
 
 run-main:
-	@echo "Usage: make $@ MainRepoPath=/path/to/documents ExternalReportDir=/path/to/testdir"
+	@echo $(subst __tmp__,$@,${USAGE_STRING})
+	exit 1
 
 ##
 # If ExternalReportDir is not empty and MainRepoPath is not empty
@@ -167,8 +233,10 @@ ${FULL_REPORT_DIR}/stderr.log:
 	$(MAKE) main-is-built || $(MAKE) build-main
 	mkdir -p ${FULL_REPORT_DIR}
 	[ ! -d "${FULL_REPORT_DIR}/.LOCK" ]
-	mkdir "${FULL_REPORT_DIR}/.LOCK" && \
-	docker run \
+	date
+	mkdir "${FULL_REPORT_DIR}/.LOCK" \
+	&& docker run \
+		--rm \
 		--tty \
 		--attach stderr \
 		--attach stdout \
@@ -182,13 +250,17 @@ ${FULL_REPORT_DIR}/stderr.log:
 		${MAIN_REPO_IMAGE} \
 		make -f ${CMSMakefile} \
 		instantiate show-hg-info runtests-all \
-		VERBOSE=true || \
-	(ret=$$?; rmdir "${FULL_REPORT_DIR}/.LOCK" && exit $$ret)
+		VERBOSE=true \
+	|| (ret=$$?; rmdir "${FULL_REPORT_DIR}/.LOCK" && exit $$ret)
 	rmdir "${FULL_REPORT_DIR}/.LOCK"
+	date
 
 # test-main is a shorter spelling of the above target.
 .PHONY: test-main
 test-main: ${FULL_REPORT_DIR}/stderr.log
+
+# Capture the PATH variable from the "Prepared" image
+Prepared_Image_Path:=$(shell docker run --attach stdout --volume ${PWD}/LocalSupportScripts:/LocalSupportScripts ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared /LocalSupportScripts/echo-path)
 
 # This target runs the same test suite against the repository as it currently
 # exists. The MainRepoPath is mapped to a read-only volume in the image.
@@ -232,8 +304,17 @@ really-test-main: ${FULL_REPORT_DIR}/build.log
 # to the correct git repository.
 ${ExternalReportDir}/.git:
 	git clone git@bitbucket.org:jgoldfar/jgoldfar-cms-testresults.git $(dir $<)
-	cd $(dir $<) && \
-	git config user.name "IWS-Docker-${DOCKER_USERNAME}
+	cd $(dir $<) \
+	&& git config user.name "IWS-Docker-${DOCKER_USERNAME} \
+	&& git checkout -b ${Report_Repo_Branch} --track origin/${Report_Repo_Branch}
+
+pull-reportdir: ${ExternalReportDir}/.git
+	cd $(dir $<) \
+	&& git pull --rebase
+
+push-reportdir: ${ExternalReportDir}/.git
+	cd $(dir $<) \
+	&& git push -u origin ${Report_Repo_Branch} 
 
 # This target summarizes the test results and commits updated data to the
 # ${ExternalReportDir} git repository. As a part of that, we emit a lock
@@ -246,9 +327,12 @@ record-test-main: ${FULL_REPORT_DIR}/committed
 
 ${FULL_REPORT_DIR}/committed: ${FULL_REPORT_DIR}/build.log ${ExternalReportDir}/.git
 	$(MAKE) main-is-built || $(MAKE) build-main
+	$(MAKE) pull-reportdir || echo "Pull failed."
 	[ ! -d "${FULL_REPORT_DIR}/.LOCK" ]
-	mkdir "${FULL_REPORT_DIR}/.LOCK" && \
-	docker run \
+	date
+	mkdir "${FULL_REPORT_DIR}/.LOCK" \
+	&& docker run \
+		--rm \
 		--tty \
 		--attach stderr \
 		--attach stdout \
@@ -262,15 +346,18 @@ ${FULL_REPORT_DIR}/committed: ${FULL_REPORT_DIR}/build.log ${ExternalReportDir}/
 		${MAIN_REPO_IMAGE} \
 		make -f ${CMSMakefile} \
 		instantiate generate-summaries update-test-readme record-summaries \
-		VERBOSE=true NOPUSH=true NOPULL=true || \
-	(ret=$$?; rmdir "${FULL_REPORT_DIR}/.LOCK" && exit $$ret)
+		VERBOSE=true NOPUSH=true NOPULL=true \
+	|| (ret=$$?; rmdir "${FULL_REPORT_DIR}/.LOCK" && exit $$ret)
 	rmdir "${FULL_REPORT_DIR}/.LOCK"
+	date
+	$(MAKE) push-reportdir || echo "Push failed."
 
 # This target allows you to drop into the built image corresponding to a given REPORTID
 # to debug test failures.
 run-main:
 	$(MAKE) main-is-built || $(MAKE) build-main
 	docker run \
+		--rm \
 		--tty --interactive \
 		--attach stderr \
 		--attach stdout \
