@@ -180,6 +180,7 @@ Dockerfile.main: Makefile
 	echo "FROM ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared" > $@
 	echo "MAINTAINER Jonathan Goldfarb <jgoldfar@gmail.com>" >> $@
 	echo "ADD ${REPO_TARBALL} /" >> $@
+	echo "ENV TEXINPUTS /$(patsubst %.tar,%,${REPO_TARBALL})/misc/env/tex-include/Templates/:" >> $@
 	echo "WORKDIR /$(patsubst %.tar,%,${REPO_TARBALL})" >> $@
 
 # This target will fail if the main image isn't yet built.
@@ -395,16 +396,24 @@ run-main-local:
 		${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared \
 		bash
 
-# This target cleans up generated images
-cleanup-main-images:
-	$(warn "$@ Unimplemented.")
 
 # This section only exists to clean up in the case of a "bad" interruption in a process
 force-cleanup: cleanup-main-images
 	rmdir ${FULL_REPORT_DIR}/.LOCK || echo "${FULL_REPORT_DIR} not locked."
 	rmdir ${MainRepoPath}/.LOCK || echo "${MainRepoPath} not locked."
-	$(RM) Documents*.tar
 	$(RM) -r ${FULL_REPORT_DIR}
 endif # ExternalReportDir isempty if statement
 endif # MainRepoPath isempty if statement
 
+# This target cleans up generated images
+cleanup-all-images:
+	docker rmi $(shell docker images --all --format "{{.Repository}}:{{.Tag}}" | grep '${DOCKER_REPO_BASE}') || echo "No images to remove."
+	docker system prune --force --volumes
+
+cleanup-main-images:
+	docker rmi $(shell docker images --all --format "{{.Repository}}:{{.Tag}}" | grep '${DOCKER_REPO_BASE}:main') || echo "No images to remove."
+	docker system prune --force --volumes
+
+# Generic (safe) clean target
+clean: cleanup-main-images
+	$(RM) Documents*.tar
