@@ -26,6 +26,10 @@ DOCKER_USERNAME?=jgoldfar
 # Base image name for uploaded artifacts
 DOCKER_REPO_BASE:=cms-test-image
 
+# User info for current user (to be duplicated within the docker container:
+# we don't want to run our tests as root.)
+USERINFO:=$(shell id -u):$(shell id -g)
+
 # This is the default branch we use to report these test results, as well as
 # a suffix for the test directory.
 Report_Repo_Branch?=$(shell uname -s)
@@ -52,7 +56,6 @@ FORCE_UPDATE?=
 # Generic usage string. Use Make's subst command to interpolate the target.
 USAGE_STRING:="Usage: make __tmp__ MainRepoPath=/path/to/Documents ExternalReportDir=/path/to/testdir"
 ## End Configurable Variables
-
 
 
 ## Start main set of targets
@@ -105,8 +108,8 @@ REPORTDATE:=$(shell $(HG) log --cwd $(MainRepoPath) -r "$(REPORTID)" -T '{word(0
 MAIN_REPO_IMAGE:=${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:main-${REPORTID}
 # Internal path to main repository. 
 InternalRepoStem?=Documents-${REPORTID}
-# The repository tarball will be generated into the file with the name below:
-REPO_TARBALL:=${InternalRepoStem}.tar
+# The repository will be generated into a directory with the name below:
+REPO_OUTPUT_PATH:=${PWD}/${InternalRepoStem}
 # We'll generate test output into the directory below:
 FULL_REPORT_DIR:=${ExternalReportDir}/${REPORTID}
 
@@ -142,7 +145,7 @@ status:
 # NOTE The generated tarball name must match the directory under `/` that we will
 # be running the generated tests from. This is enforced by generating the tarball
 # into $(notdir ${InternalRepoStem}).
-# Note on this tarball:
+# Note on this output format choice:
 #     Tested raw files, tar, tgz, and zip, and tarballs are fastest to generate.
 #     However, this isn't the end of the story: tarball generation seems highly
 #     variables, despite it running what seems a deterministic process.
@@ -151,24 +154,25 @@ status:
 #     while tradeoff to sometimes pay the higher price to export raw files; we
 #     could have a builder that extracts the repo to a tagged subdirectory of this
 #     one at some point on the future.
-build-main: Dockerfile.main ${REPO_TARBALL}
+build-main: Dockerfile.main ${REPO_OUTPUT_PATH}
 	[ ! -d "${MainRepoPath}/.LOCK" ]
 	docker build \
 		--no-cache \
 		-f Dockerfile.main \
 		-t ${MAIN_REPO_IMAGE} .
-	$(RM) ${REPO_TARBALL}
+	$(RM) -r ${REPO_OUTPUT_PATH}
 
-${REPO_TARBALL}:
+${REPO_OUTPUT_PATH}:
 	[ ! -d "${MainRepoPath}/.LOCK" ]
 	mkdir "${MainRepoPath}/.LOCK" \
-	&& hg archive --time \
+	&& hg archive \
+		--time \
 		--cwd ${MainRepoPath} \
 		--rev ${REPORTID} \
 		--subrepos \
 		--verbose \
 		--exclude "ugrad/climate dynamics/" \
-		${PWD}/$@ \
+		$@ \
 	|| (ret=$$?; rmdir "${MainRepoPath}/.LOCK" && exit $$ret)
 	rmdir "${MainRepoPath}/.LOCK"
 
@@ -179,9 +183,10 @@ ${REPO_TARBALL}:
 Dockerfile.main: Makefile
 	echo "FROM ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared" > $@
 	echo "MAINTAINER Jonathan Goldfarb <jgoldfar@gmail.com>" >> $@
-	echo "ADD ${REPO_TARBALL} /" >> $@
-	echo "ENV TEXINPUTS /$(patsubst %.tar,%,${REPO_TARBALL})/misc/env/tex-include/Templates/:" >> $@
-	echo "WORKDIR /$(patsubst %.tar,%,${REPO_TARBALL})" >> $@
+	echo "ADD ${InternalRepoStem} /${InternalRepoStem}" >> $@
+	echo "RUN chown -R ${USERINFO} /${InternalRepoStem}" >> $@
+	echo "ENV TEXINPUTS /${InternalRepoStem}/misc/env/tex-include/Templates/:" >> $@
+	echo "WORKDIR /${InternalRepoStem}" >> $@
 
 # This target will fail if the main image isn't yet built.
 main-is-built:
@@ -239,6 +244,7 @@ ${FULL_REPORT_DIR}/stderr.log:
 	&& docker run \
 		--rm \
 		--tty \
+		--user ${USERINFO} \
 		--attach stderr \
 		--attach stdout \
 		--env REPOROOT="/${InternalRepoStem}" \
@@ -273,6 +279,7 @@ ${PWD}/TestOutput/stderr.log:
 		--workdir "/Documents" \
 		--volume ${MainRepoPath}:/Documents:ro \
 		--tty \
+		--user ${USERINFO} \
 		--attach stderr \
 		--attach stdout \
 		--env REPOROOT="/Documents" \
@@ -321,11 +328,6 @@ push-reportdir: ${ExternalReportDir}/.git
 # ${ExternalReportDir} git repository. As a part of that, we emit a lock
 # in the corresponding directory so existing test or report generation routines
 # are not interrupted.
-# Note that this process does not pull new commits into ExternalReportDir, or 
-# push any commits out, so that will still have to be managed externally.
-# TODO: Add git pull & git push here to make this target self-contained.
-record-test-main: ${FULL_REPORT_DIR}/committed
-
 ${FULL_REPORT_DIR}/committed: ${FULL_REPORT_DIR}/build.log ${ExternalReportDir}/.git
 	$(MAKE) main-is-built || $(MAKE) build-main
 	$(MAKE) pull-reportdir || echo "Pull failed."
@@ -335,6 +337,7 @@ ${FULL_REPORT_DIR}/committed: ${FULL_REPORT_DIR}/build.log ${ExternalReportDir}/
 	&& docker run \
 		--rm \
 		--tty \
+		--user ${USERINFO} \
 		--attach stderr \
 		--attach stdout \
 		--env REPOROOT="/${InternalRepoStem}" \
@@ -353,6 +356,9 @@ ${FULL_REPORT_DIR}/committed: ${FULL_REPORT_DIR}/build.log ${ExternalReportDir}/
 	date
 	$(MAKE) push-reportdir || echo "Push failed."
 
+# This is a shorter spelling of the above target
+record-test-main: ${FULL_REPORT_DIR}/committed
+
 # This target allows you to drop into the built image corresponding to a given REPORTID
 # to debug test failures.
 run-main:
@@ -360,6 +366,7 @@ run-main:
 	docker run \
 		--rm \
 		--tty --interactive \
+		--user ${USERINFO} \
 		--attach stderr \
 		--attach stdout \
 		--env REPOROOT="/${InternalRepoStem}" \
@@ -382,6 +389,7 @@ run-main-local:
 		--workdir "/Documents" \
 		--volume ${MainRepoPath}:/Documents:ro \
 		--tty --interactive \
+		--user ${USERINFO} \
 		--attach stderr \
 		--attach stdout \
 		--env REPOROOT="/Documents" \
