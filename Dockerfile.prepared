@@ -26,7 +26,35 @@ RUN tlmgr init-usertree \
       nfssext-cfr \
       ms \
       xcolor \
-      svn-prov
+      svn-prov \
+      beamer \
+      flashcards \
+      lm \
+      microtype \
+      subfiles \
+      setspace \
+      etoolbox \
+      standalone \
+      subfig \
+      translator \
+      caption \
+      thmtools \
+      capt-of \
+      booktabs \
+      listings \
+      cleveref \
+      todonotes \
+      bezos \
+      glossaries \
+      mfirstuc \
+      textcase \
+      xfor \
+      datatool \
+      substr \
+      fp \
+      paralist \
+      quotchap \
+      bookman
 
 # Clone all git repositories intended to ship along with CMS
 
