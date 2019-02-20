@@ -112,6 +112,8 @@ InternalRepoStem?=Documents-${REPORTID}
 REPO_OUTPUT_PATH:=${PWD}/${InternalRepoStem}
 # We'll generate test output into the directory below:
 FULL_REPORT_DIR:=${ExternalReportDir}/${REPORTID}
+# TEXINPUTS is set to the value below:
+Internal_TEXINPUTS:=/${InternalRepoStem}/misc/env/tex-include/Templates/:
 
 # This target just shows the make variables we would use to run a particular build,
 # as well as some general status information.
@@ -185,7 +187,7 @@ Dockerfile.main: Makefile
 	echo "MAINTAINER Jonathan Goldfarb <jgoldfar@gmail.com>" >> $@
 	echo "ADD ${InternalRepoStem} /${InternalRepoStem}" >> $@
 	echo "RUN chown -R ${USERINFO} /${InternalRepoStem}" >> $@
-	echo "ENV TEXINPUTS /${InternalRepoStem}/misc/env/tex-include/Templates/:" >> $@
+	echo "ENV TEXINPUTS ${Internal_TEXINPUTS}" >> $@
 	echo "WORKDIR /${InternalRepoStem}" >> $@
 
 # This target will fail if the main image isn't yet built.
