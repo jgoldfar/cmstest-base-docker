@@ -9,6 +9,10 @@
 # to run this process. Known to work well against CMSTest v3.0.1
 # or versions of CMSTest newer than commit 6b9245d80691
 
+#TODO: Add report or check for un-uploaded report files left in REPORTDIR
+#TODO: Add target to re-run analyses of commits (basically, to regenerate
+#      SUMMARY and DIFF for a commit based on given stderr.log and 
+#      stdout.log files.
 
 ## Start configurable variables
 HG?=$(shell which hg)
@@ -119,10 +123,12 @@ Internal_TEXINPUTS:=/${InternalRepoStem}/misc/env/tex-include/Templates/More:
 # as well as some general status information.
 status:
 	@echo REPORTID: ${REPORTID}
-	@echo REPORTDATE: ${REPORTDATE}
+	@echo REPORTDATE: ${REPORTDATE} "("$(shell date -d "@${REPORTDATE}")")"
 	@echo MainRepoPath: ${MainRepoPath}
 	@echo FULL_REPORT_DIR: ${FULL_REPORT_DIR}
-	@echo MAIN_REPO_IMAGE: ${MAIN_REPO_IMAGE}
+	@$(MAKE) main-is-built > /dev/null 2>&1 \
+	&& echo "MAIN_REPO_IMAGE: ${MAIN_REPO_IMAGE} (Exists)" \
+	|| echo "MAIN_REPO_IMAGE: ${MAIN_REPO_IMAGE} (Missing)"
 	@[ -f "${FULL_REPORT_DIR}/stderr.log" ] \
 	&& echo "REPORTID Tested: True (has stderr.log)" \
 	|| echo "REPORTID Tested: False (has no stderr.log)"
@@ -171,12 +177,12 @@ ${REPO_OUTPUT_PATH}:
 	mkdir "${MainRepoPath}/.LOCK" \
 	&& hg archive \
 		--time \
-		--cwd ${MainRepoPath} \
+		--cwd "${MainRepoPath}" \
 		--rev ${REPORTID} \
 		--subrepos \
 		--verbose \
 		--exclude "ugrad/climate dynamics/" \
-		$@ \
+		"$@" \
 	|| (ret=$$?; rmdir "${MainRepoPath}/.LOCK" && exit $$ret)
 	rmdir "${MainRepoPath}/.LOCK"
 
@@ -189,7 +195,7 @@ Dockerfile.main: Makefile
 	@echo "" >> $@
 	@echo "MAINTAINER Jonathan Goldfarb <jgoldfar@gmail.com>" >> $@
 	@echo "" >> $@
-	@echo "ADD ${InternalRepoStem} /${InternalRepoStem}" >> $@
+	@echo "ADD ./${InternalRepoStem} /${InternalRepoStem}" >> $@
 	@echo "" >> $@
 	@echo "RUN chown -R ${USERINFO} /${InternalRepoStem} \\" >> $@
 	@echo "    && cd ${InternalRepoStem}/misc/env/bin \\" >> $@
@@ -309,10 +315,11 @@ ${PWD}/TestOutput/stderr.log:
 test-main-local: ${PWD}/TestOutput/stderr.log
 
 # This target runs tests, while saving any output from the build process itself
-# into a logfile.
+# into a logfile. We save the logfile to a temporary file
 ${FULL_REPORT_DIR}/build.log:
-	mkdir -p ${FULL_REPORT_DIR}
-	$(MAKE) test-main > $@ 2>&1
+	mkdir -p "${FULL_REPORT_DIR}"
+	$(MAKE) test-main > "$@-tmp" 2>&1 || $(RM) "$@-tmp"
+	[ -f "$@-tmp" ] && mv $@-tmp $@
 
 # really-test-main is a shorter spelling of the above target.
 really-test-main: ${FULL_REPORT_DIR}/build.log
