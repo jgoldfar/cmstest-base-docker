@@ -90,14 +90,14 @@ prepared: build-prepared push-prepared
 ##
 # "Main" image build and test run
 # We first test if MainRepoPath isempty; if so, emit a usage message and bail.
-ifeq ($(MainRepoPath),) 
+ifeq ($(MainRepoPath),)
 build-main:
 	@echo $(subst __tmp__,$@,${USAGE_STRING})
 	exit 1
 
 ##
 # When MainRepoPath is not empty, we can build the main image
-else 
+else
 # Derive REPORTID from HG node hash from MainRepoPath. If you provide a hg id
 # on the command line, we'll do our best to run tests against that revision, but
 # with subrepos things can get complicated...
@@ -106,14 +106,14 @@ REPORTID?=$(shell $(HG) log --cwd $(MainRepoPath) -l 1 -T '{node}')
 REPORTDATE:=$(shell $(HG) log --cwd $(MainRepoPath) -r "$(REPORTID)" -T '{word(0, date|hgdate)}')
 # The generated main image will have the tag below:
 MAIN_REPO_IMAGE:=${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:main-${REPORTID}
-# Internal path to main repository. 
+# Internal path to main repository.
 InternalRepoStem?=Documents-${REPORTID}
 # The repository will be generated into a directory with the name below:
 REPO_OUTPUT_PATH:=${PWD}/${InternalRepoStem}
 # We'll generate test output into the directory below:
 FULL_REPORT_DIR:=${ExternalReportDir}/${REPORTID}
 # TEXINPUTS is set to the value below:
-Internal_TEXINPUTS:=/${InternalRepoStem}/misc/env/tex-include/Templates/:
+Internal_TEXINPUTS:=/${InternalRepoStem}/misc/env/tex-include/Templates/More:
 
 # This target just shows the make variables we would use to run a particular build,
 # as well as some general status information.
@@ -144,8 +144,8 @@ status:
 	|| echo "FULL_REPORT_DIR Contents: Empty"
 
 # Build an image containing a snapshot of ${MainRepoPath} at the given REPORTID
-# NOTE The generated tarball name must match the directory under `/` that we will
-# be running the generated tests from. This is enforced by generating the tarball
+# NOTE The generated directory name must match the directory under `/` that we will
+# be running the generated tests from. This is enforced by generating the files
 # into $(notdir ${InternalRepoStem}).
 # Note on this output format choice:
 #     Tested raw files, tar, tgz, and zip, and tarballs are fastest to generate.
@@ -158,9 +158,11 @@ status:
 #     one at some point on the future.
 build-main: Dockerfile.main ${REPO_OUTPUT_PATH}
 	[ ! -d "${MainRepoPath}/.LOCK" ]
+	@echo "Building ${MAIN_REPO_IMAGE} with $<. Contents:"
+	cat $<
 	docker build \
 		--no-cache \
-		-f Dockerfile.main \
+		-f $< \
 		-t ${MAIN_REPO_IMAGE} .
 	$(RM) -r ${REPO_OUTPUT_PATH}
 
@@ -183,12 +185,25 @@ ${REPO_OUTPUT_PATH}:
 # NOTE: InternalRepoStem and the name of the tarball have to be kept in sync as
 # above.
 Dockerfile.main: Makefile
-	echo "FROM ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared" > $@
-	echo "MAINTAINER Jonathan Goldfarb <jgoldfar@gmail.com>" >> $@
-	echo "ADD ${InternalRepoStem} /${InternalRepoStem}" >> $@
-	echo "RUN chown -R ${USERINFO} /${InternalRepoStem}" >> $@
-	echo "ENV TEXINPUTS ${Internal_TEXINPUTS}" >> $@
-	echo "WORKDIR /${InternalRepoStem}" >> $@
+	@echo "FROM ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared" > $@
+	@echo "" >> $@
+	@echo "MAINTAINER Jonathan Goldfarb <jgoldfar@gmail.com>" >> $@
+	@echo "" >> $@
+	@echo "ADD ${InternalRepoStem} /${InternalRepoStem}" >> $@
+	@echo "" >> $@
+	@echo "RUN chown -R ${USERINFO} /${InternalRepoStem} \\" >> $@
+	@echo "    && cd ${InternalRepoStem}/misc/env/bin \\" >> $@
+	@echo "    && make latex/.chktexrc LATEX_TEMPLATE_INSTALL_ROOT=/${InternalRepoStem} \\ " >> $@
+	@echo "" >> $@
+	@echo "ENV TEXINPUTS=\"${Internal_TEXINPUTS}\"" >> $@
+	@echo "    REPOROOT=\"/${InternalRepoStem}\"" >> $@
+	@echo "    CHKTEXRC=\"${InternalRepoStem}/misc/env/bin/latex/.chktexrc\"" >> $@
+	@echo "    REPORTDIR=\"${InternalReportDir}\"" >> $@
+	@echo "    REPORTID=${REPORTID}" >> $@
+	@echo "    REPORTDATE=${REPORTDATE}" >> $@
+	@echo "    JULIA_LOAD_PATH=\"/${InternalRepoStem}/misc/julia\"" >> $@
+	@echo "    JULIA_ARGS=\"--project=/${InternalRepoStem}/misc/julia/CMSTest\"" >> $@
+	@echo "WORKDIR /${InternalRepoStem}" >> $@
 
 # This target will fail if the main image isn't yet built.
 main-is-built:
@@ -217,7 +232,7 @@ force-clean-main-repo:
 # Check that ExternalReportDir isempty, MainRepoPath is not empty
 # If so, emit a usage message for test-main and push-test-main (which
 # cannot run in this situation.)
-ifeq ($(ExternalReportDir),) 
+ifeq ($(ExternalReportDir),)
 test-main:
 	@echo $(subst __tmp__,$@,${USAGE_STRING})
 	exit 1
@@ -249,12 +264,6 @@ ${FULL_REPORT_DIR}/stderr.log:
 		--user ${USERINFO} \
 		--attach stderr \
 		--attach stdout \
-		--env REPOROOT="/${InternalRepoStem}" \
-		--env REPORTDIR=${InternalReportDir} \
-		--env REPORTID=${REPORTID} \
-		--env REPORTDATE=${REPORTDATE} \
-		--env JULIA_LOAD_PATH="/${InternalRepoStem}/misc/julia" \
-		--env JULIA_ARGS="--project=/${InternalRepoStem}/misc/julia/CMSTest" \
 		--volume ${ExternalReportDir}:${InternalReportDir} \
 		${MAIN_REPO_IMAGE} \
 		make -f ${CMSMakefile} \
@@ -285,9 +294,7 @@ ${PWD}/TestOutput/stderr.log:
 		--attach stderr \
 		--attach stdout \
 		--env REPOROOT="/Documents" \
-		--env REPORTDIR=${InternalReportDir} \
 		--env REPORTID=${REPORTID}-dev \
-		--env REPORTDATE=${REPORTDATE} \
 		--env JULIA_LOAD_PATH="/Documents/misc/julia" \
 		--env JULIA_ARGS="--project=/Documents/misc/julia/CMSTest" \
 		--env PATH="/LocalSupportScripts:${Prepared_Image_Path}" \
@@ -315,7 +322,7 @@ really-test-main: ${FULL_REPORT_DIR}/build.log
 ${ExternalReportDir}/.git:
 	git clone git@bitbucket.org:jgoldfar/jgoldfar-cms-testresults.git $(dir $<)
 	cd $(dir $<) \
-	&& git config user.name "IWS-Docker-${DOCKER_USERNAME} \
+	&& git config user.name "IWS-Docker-${DOCKER_USERNAME}" \
 	&& git checkout -b ${Report_Repo_Branch} --track origin/${Report_Repo_Branch}
 
 pull-reportdir: ${ExternalReportDir}/.git
@@ -324,7 +331,7 @@ pull-reportdir: ${ExternalReportDir}/.git
 
 push-reportdir: ${ExternalReportDir}/.git
 	cd $(dir $<) \
-	&& git push -u origin ${Report_Repo_Branch} 
+	&& git push -u origin ${Report_Repo_Branch}
 
 # This target summarizes the test results and commits updated data to the
 # ${ExternalReportDir} git repository. As a part of that, we emit a lock
@@ -342,12 +349,6 @@ ${FULL_REPORT_DIR}/committed: ${FULL_REPORT_DIR}/build.log ${ExternalReportDir}/
 		--user ${USERINFO} \
 		--attach stderr \
 		--attach stdout \
-		--env REPOROOT="/${InternalRepoStem}" \
-		--env REPORTDIR=${InternalReportDir} \
-		--env REPORTID=${REPORTID} \
-		--env REPORTDATE=${REPORTDATE} \
-		--env JULIA_LOAD_PATH="/${InternalRepoStem}/misc/julia" \
-		--env JULIA_ARGS="--project=/${InternalRepoStem}/misc/julia/CMSTest" \
 		--volume ${ExternalReportDir}:${InternalReportDir} \
 		${MAIN_REPO_IMAGE} \
 		make -f ${CMSMakefile} \
@@ -371,12 +372,6 @@ run-main:
 		--user ${USERINFO} \
 		--attach stderr \
 		--attach stdout \
-		--env REPOROOT="/${InternalRepoStem}" \
-		--env REPORTDIR=${InternalReportDir} \
-		--env REPORTID=${REPORTID} \
-		--env REPORTDATE=${REPORTDATE} \
-		--env JULIA_LOAD_PATH="/${InternalRepoStem}/misc/julia" \
-		--env JULIA_ARGS="--project=/${InternalRepoStem}/misc/julia/CMSTest" \
 		--volume ${ExternalReportDir}:${InternalReportDir} \
 		${MAIN_REPO_IMAGE} \
 		bash
@@ -395,11 +390,9 @@ run-main-local:
 		--attach stderr \
 		--attach stdout \
 		--env REPOROOT="/Documents" \
-		--env REPORTDIR=${InternalReportDir} \
 		--env REPORTID=${REPORTID}-dev \
-		--env REPORTDATE=${REPORTDATE} \
-		--env JULIA_LOAD_PATH="/${InternalRepoStem}/misc/julia" \
-		--env JULIA_ARGS="--project=/${InternalRepoStem}/misc/julia/CMSTest" \
+		--env JULIA_LOAD_PATH="/Documents/misc/julia" \
+		--env JULIA_ARGS="--project=/Documents/misc/julia/CMSTest" \
 		--env PATH="/LocalSupportScripts:${Prepared_Image_Path}" \
 		--volume ${PWD}/TestOutput:${InternalReportDir} \
 		--volume ${PWD}/LocalSupportScripts:/LocalSupportScripts:ro \
