@@ -11,7 +11,7 @@
 
 #TODO: Add report or check for un-uploaded report files left in REPORTDIR
 #TODO: Add target to re-run analyses of commits (basically, to regenerate
-#      SUMMARY and DIFF for a commit based on given stderr.log and 
+#      SUMMARY and DIFF for a commit based on given stderr.log and
 #      stdout.log files.
 
 ## Start configurable variables
@@ -117,7 +117,7 @@ REPO_OUTPUT_PATH:=${PWD}/${InternalRepoStem}
 # We'll generate test output into the directory below:
 FULL_REPORT_DIR:=${ExternalReportDir}/${REPORTID}
 # TEXINPUTS is set to the value below:
-Internal_TEXINPUTS:=/${InternalRepoStem}/misc/env/tex-include/Templates/More:
+Internal_TEXINPUTS:=/${InternalRepoStem}/misc/env/tex-include/Templates/:
 
 # This target just shows the make variables we would use to run a particular build,
 # as well as some general status information.
@@ -198,17 +198,17 @@ Dockerfile.main: Makefile
 	@echo "ADD ./${InternalRepoStem} /${InternalRepoStem}" >> $@
 	@echo "" >> $@
 	@echo "RUN chown -R ${USERINFO} /${InternalRepoStem} \\" >> $@
-	@echo "    && cd ${InternalRepoStem}/misc/env/bin \\" >> $@
-	@echo "    && make latex/.chktexrc LATEX_TEMPLATE_INSTALL_ROOT=/${InternalRepoStem} \\ " >> $@
+	@echo "    && make -C ${InternalRepoStem}/misc/env/bin latex/.chktexrc LATEX_TEMPLATE_INSTALL_ROOT=/${InternalRepoStem}" >> $@
 	@echo "" >> $@
-	@echo "ENV TEXINPUTS=\"${Internal_TEXINPUTS}\"" >> $@
-	@echo "    REPOROOT=\"/${InternalRepoStem}\"" >> $@
-	@echo "    CHKTEXRC=\"${InternalRepoStem}/misc/env/bin/latex/.chktexrc\"" >> $@
-	@echo "    REPORTDIR=\"${InternalReportDir}\"" >> $@
-	@echo "    REPORTID=${REPORTID}" >> $@
-	@echo "    REPORTDATE=${REPORTDATE}" >> $@
-	@echo "    JULIA_LOAD_PATH=\"/${InternalRepoStem}/misc/julia\"" >> $@
+	@echo "ENV TEXINPUTS=\"${Internal_TEXINPUTS}\" \\" >> $@
+	@echo "    REPOROOT=\"/${InternalRepoStem}\" \\" >> $@
+	@echo "    CHKTEXRC=\"${InternalRepoStem}/misc/env/bin/latex/.chktexrc\" \\" >> $@
+	@echo "    REPORTDIR=\"${InternalReportDir}\" \\" >> $@
+	@echo "    REPORTID=${REPORTID} \\" >> $@
+	@echo "    REPORTDATE=${REPORTDATE} \\" >> $@
+	@echo "    JULIA_LOAD_PATH=\"/${InternalRepoStem}/misc/julia\" \\" >> $@
 	@echo "    JULIA_ARGS=\"--project=/${InternalRepoStem}/misc/julia/CMSTest\"" >> $@
+	@echo "" >> $@
 	@echo "WORKDIR /${InternalRepoStem}" >> $@
 
 # This target will fail if the main image isn't yet built.
@@ -366,8 +366,11 @@ ${FULL_REPORT_DIR}/committed: ${FULL_REPORT_DIR}/build.log ${ExternalReportDir}/
 	date
 	$(MAKE) push-reportdir || echo "Push failed."
 
-# This is a shorter spelling of the above target
-record-test-main: ${FULL_REPORT_DIR}/committed
+# This is a shorter spelling of the above target.
+# We don't try to run this target if the file exists (irrespective of timestamp)
+# Because of timing issues, we may have a situation where this file exists, but
+# doesn't "seem" new.
+record-test-main: $(if $(wildcard ${FULL_REPORT_DIR}/committed),,${FULL_REPORT_DIR}/committed)
 
 # This target allows you to drop into the built image corresponding to a given REPORTID
 # to debug test failures.
@@ -406,12 +409,14 @@ run-main-local:
 		${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared \
 		bash
 
-
 # This section only exists to clean up in the case of a "bad" interruption in a process
-force-cleanup: cleanup-main-images
+remove-locks:
 	rmdir ${FULL_REPORT_DIR}/.LOCK || echo "${FULL_REPORT_DIR} not locked."
 	rmdir ${MainRepoPath}/.LOCK || echo "${MainRepoPath} not locked."
+
+force-cleanup: remove-locks cleanup-main-images
 	$(RM) -r ${FULL_REPORT_DIR}
+
 endif # ExternalReportDir isempty if statement
 endif # MainRepoPath isempty if statement
 
