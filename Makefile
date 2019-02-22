@@ -41,8 +41,13 @@ Report_Repo_Branch?=$(shell uname -s)
 # Local path to SSH key authenticated to Github and Bitbucket
 SSH_PRV_KEY_FILE?=/home/jgoldfar/.ssh/id_rsa
 
-# Local path to updated main repository
+# Local path to updated main repository. We should only be generating these
+# targets on non-CI machines (for now) so this will be empty if CI is not.
+ifeq ($(CI),)
 MainRepoPath?=/Users/jgoldfar/Documents
+else
+MainRepoPath?=
+endif
 
 # Local path to test output directory
 ExternalReportDir?=/Users/jgoldfar/test-${Report_Repo_Branch}
