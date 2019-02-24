@@ -49,6 +49,9 @@ else
 MainRepoPath?=
 endif
 
+# If we're currently using the MainRepo, we'll have a lock directory here:
+MainRepoLockDir:=${MainRepoPath}/.LOCK
+
 # Local path to test output directory
 ExternalReportDir?=/Users/jgoldfar/test-${Report_Repo_Branch}
 
@@ -68,6 +71,7 @@ USAGE_STRING:="Usage: make __tmp__ MainRepoPath=/path/to/Documents ExternalRepor
 
 
 ## Start main set of targets
+.PHONY: usage
 usage:
 	@echo $(subst __tmp__,[TARGET],${USAGE_STRING})
 
@@ -82,6 +86,7 @@ build-%: Dockerfile.%
 push-%: build-%
 	docker push ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:$*
 
+.PHONY: base build-base push-base
 base: build-base push-base
 
 
@@ -93,6 +98,7 @@ build-prepared: Dockerfile.prepared
 		--build-arg ssh_prv_key="`cat $(SSH_PRV_KEY_FILE)`" \
 		-t ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared .
 
+.PHONY: prepared build-prepared push-prepared
 prepared: build-prepared push-prepared
 
 
@@ -121,11 +127,15 @@ InternalRepoStem?=Documents-${REPORTID}
 REPO_OUTPUT_PATH:=${PWD}/${InternalRepoStem}
 # We'll generate test output into the directory below:
 FULL_REPORT_DIR:=${ExternalReportDir}/${REPORTID}
+# If we're currently running a process on this revision, there will be a lock
+# directory here:
+FULL_REPORT_LOCK_DIR:=${FULL_REPORT_DIR}/.LOCK
 # TEXINPUTS is set to the value below:
 Internal_TEXINPUTS:=/${InternalRepoStem}/misc/env/tex-include/Templates/:
 
 # This target just shows the make variables we would use to run a particular build,
 # as well as some general status information.
+.PHONY: status
 status:
 	@echo REPORTID: ${REPORTID}
 	@echo REPORTDATE: ${REPORTDATE} "("$(shell date -d "@${REPORTDATE}")")"
@@ -143,10 +153,10 @@ status:
 	@[ -f "${FULL_REPORT_DIR}/committed" ] \
 	&& echo "REPORTID Committed: True (has committed)" \
 	|| echo "REPORTID Committed: False (has no committed)"
-	@[ -d "${FULL_REPORT_DIR}/.LOCK" ] \
+	@[ -d "${FULL_REPORT_LOCK_DIR}" ] \
 	&& echo "REPORTID Test Running (Locked): True" \
 	|| echo "REPORTID Test Running (Locked): False"
-	@[ -d "${MainRepoPath}/.LOCK" ] \
+	@[ -d "${MainRepoLockDir}" ] \
 	&& echo "MainRepo Currently Exporting (Locked): True" \
 	|| echo "MainRepo Currently Exporting (Locked): False"
 	@[ -d "${FULL_REPORT_DIR}" ] \
@@ -167,8 +177,9 @@ status:
 #     while tradeoff to sometimes pay the higher price to export raw files; we
 #     could have a builder that extracts the repo to a tagged subdirectory of this
 #     one at some point on the future.
+.PHONY: build-main
 build-main: Dockerfile.main ${REPO_OUTPUT_PATH}
-	[ ! -d "${MainRepoPath}/.LOCK" ]
+	[ ! -d "${MainRepoLockDir}" ] || ( echo "${MainRepoPath} Locked. Bailing." ; exit 1 )
 	@echo "Building ${MAIN_REPO_IMAGE} with $<. Contents:"
 	cat $<
 	docker build \
@@ -178,8 +189,8 @@ build-main: Dockerfile.main ${REPO_OUTPUT_PATH}
 	$(RM) -r ${REPO_OUTPUT_PATH}
 
 ${REPO_OUTPUT_PATH}:
-	[ ! -d "${MainRepoPath}/.LOCK" ]
-	mkdir "${MainRepoPath}/.LOCK" \
+	[ ! -d "${MainRepoLockDir}" ] || ( echo "${MainRepoPath} Locked. Bailing." ; exit 2 )
+	mkdir "${MainRepoLockDir}" \
 	&& hg archive \
 		--time \
 		--cwd "${MainRepoPath}" \
@@ -188,8 +199,8 @@ ${REPO_OUTPUT_PATH}:
 		--verbose \
 		--exclude "ugrad/climate dynamics/" \
 		"$@" \
-	|| (ret=$$?; rmdir "${MainRepoPath}/.LOCK" && exit $$ret)
-	rmdir "${MainRepoPath}/.LOCK"
+	|| (ret=$$?; rmdir "${MainRepoLockDir}" && exit $$ret)
+	rmdir "${MainRepoLockDir}"
 
 # The dockerfile used to generate the main image is minimal; we just import the repository
 # files and set the working directory to the correct location.
@@ -207,7 +218,7 @@ Dockerfile.main: Makefile
 	@echo "" >> $@
 	@echo "ENV TEXINPUTS=\"${Internal_TEXINPUTS}\" \\" >> $@
 	@echo "    REPOROOT=\"/${InternalRepoStem}\" \\" >> $@
-	@echo "    CHKTEXRC=\"${InternalRepoStem}/misc/env/bin/latex/.chktexrc\" \\" >> $@
+	@echo "    CHKTEXRC=\"/${InternalRepoStem}/misc/env/bin/latex/.chktexrc\" \\" >> $@
 	@echo "    REPORTDIR=\"${InternalReportDir}\" \\" >> $@
 	@echo "    REPORTID=${REPORTID} \\" >> $@
 	@echo "    REPORTDATE=${REPORTDATE} \\" >> $@
@@ -217,24 +228,26 @@ Dockerfile.main: Makefile
 	@echo "WORKDIR /${InternalRepoStem}" >> $@
 
 # This target will fail if the main image isn't yet built.
+.PHONY: main-is-built
 main-is-built:
 	docker inspect ${MAIN_REPO_IMAGE}
 
+.PHONY: mayve-update-main-repo
 REPO_UPDATE_CMD:=hg update --clean
 maybe-update-main-repo:
-	[ ! -d "${MainRepoPath}/.LOCK" ]
-	mkdir "${MainRepoPath}/.LOCK" \
+	[ ! -d "${MainRepoLockDir}" ] || ( echo "${MainRepoPath} Locked. Bailing." ; exit 3 )
+	mkdir "${MainRepoLockDir}" \
 	&& cd "${MainRepoPath}" \
 	&& hg status -mard \
 	&& hg pull \
 	&& ${REPO_UPDATE_CMD} \
-	|| (ret=$$?; rmdir "${MainRepoPath}/.LOCK" && exit $$ret)
-	rmdir "${MainRepoPath}/.LOCK"
+	|| (ret=$$?; rmdir "${MainRepoLockDir}" && exit $$ret)
+	rmdir "${MainRepoLockDir}"
 
+.PHONY: force-clean-main-repo
 force-clean-main-repo:
-	[ -d "${MainRepoPath}/.LOCK" ] && rmdir "${MainRepoPath}/.LOCK"
-	cd "${MainRepoPath}" \
-	&& hg update --clean
+	( [ -d "${MainRepoLockDir}" ] && rmdir "${MainRepoLockDir}" ) || exit 0
+	$(MAKE) maybe-update-main-repo
 
 ##
 # Check that ExternalReportDir isempty, MainRepoPath is not empty
@@ -263,9 +276,9 @@ else
 ${FULL_REPORT_DIR}/stderr.log:
 	$(MAKE) main-is-built || $(MAKE) build-main
 	mkdir -p ${FULL_REPORT_DIR}
-	[ ! -d "${FULL_REPORT_DIR}/.LOCK" ]
+	[ ! -d "${FULL_REPORT_LOCK_DIR}" ] || ( echo "${FULL_REPORT_DIR} Locked. Bailing" ; exit 1 )
 	date
-	mkdir "${FULL_REPORT_DIR}/.LOCK" \
+	mkdir "${FULL_REPORT_LOCK_DIR}" \
 	&& docker run \
 		--rm \
 		--tty \
@@ -277,13 +290,23 @@ ${FULL_REPORT_DIR}/stderr.log:
 		make -f ${CMSMakefile} \
 		instantiate show-hg-info runtests-all \
 		VERBOSE=true \
-	|| (ret=$$?; rmdir "${FULL_REPORT_DIR}/.LOCK" && exit $$ret)
-	rmdir "${FULL_REPORT_DIR}/.LOCK"
+	|| (ret=$$?; rmdir "${FULL_REPORT_LOCK_DIR}" && exit $$ret)
+	rmdir "${FULL_REPORT_LOCK_DIR}"
 	date
 
 # test-main is a shorter spelling of the above target.
 .PHONY: test-main
-test-main: ${FULL_REPORT_DIR}/stderr.log
+test-main:
+	( [ ! -z "${FORCE_UPDATE}" ] && $(RM) ${FULL_REPORT_DIR}/*.log ) || exit 0
+	@( \
+		[ ! -f "${FULL_REPORT_DIR}/stderr.log" ] \
+		&& $(MAKE) ${FULL_REPORT_DIR}/stderr.log \
+	) \
+	|| ( \
+		echo "Test results exist in ${FULL_REPORT_DIR}. Bailng." ; \
+		echo "Run make with FORCE_UPDATE=true to override." ; \
+		exit 1 \
+	)
 
 # Capture the PATH variable from the "Prepared" image
 Prepared_Image_Path:=$(shell docker run --attach stdout --volume ${PWD}/LocalSupportScripts:/LocalSupportScripts ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared /LocalSupportScripts/echo-path)
@@ -320,10 +343,9 @@ test-main-local: ${PWD}/TestOutput/stderr.log
 # into a logfile. We save the logfile to a temporary file
 ${FULL_REPORT_DIR}/build.log:
 	mkdir -p "${FULL_REPORT_DIR}"
-	[ -f "$@-tmp" ] && echo "Check for errors in previous $@-tmp"
-	[ ! -f "$@-tmp" ]
+	[ ! -f "$@-tmp" ] || ( echo "Previous temporary output $@-tmp exists. Bailing"; exit 1 )
 	$(MAKE) test-main > "$@-tmp" 2>&1
-	[ -f "$@-tmp" ] && mv $@-tmp $@
+	( [ -f "$@-tmp" ] && mv $@-tmp $@ ) || ( echo "Creation of temporary output failed. Check logfiles." ; exit 1 )
 
 # really-test-main is a shorter spelling of the above target.
 really-test-main: ${FULL_REPORT_DIR}/build.log
@@ -350,10 +372,10 @@ push-reportdir: ${ExternalReportDir}/.git
 # are not interrupted.
 ${FULL_REPORT_DIR}/committed: ${FULL_REPORT_DIR}/build.log ${ExternalReportDir}/.git
 	$(MAKE) main-is-built || $(MAKE) build-main
-	$(MAKE) pull-reportdir || (echo "Pull failed."; exit 1)
-	[ ! -d "${FULL_REPORT_DIR}/.LOCK" ]
+	( [ -z "${FORCE_UPDATE}" ] && $(MAKE) pull-reportdir ) || ( echo "Pull ${ExternalReportDir} failed." ; exit 1 )
+	[ ! -d "${FULL_REPORT_LOCK_DIR}" ] || ( echo "${FULL_REPORT_DIR} Locked. Bailing." ; exit 1 )
 	date
-	mkdir "${FULL_REPORT_DIR}/.LOCK" \
+	mkdir "${FULL_REPORT_LOCK_DIR}" \
 	&& docker run \
 		--rm \
 		--tty \
@@ -365,23 +387,32 @@ ${FULL_REPORT_DIR}/committed: ${FULL_REPORT_DIR}/build.log ${ExternalReportDir}/
 		make -f ${CMSMakefile} \
 		instantiate generate-summaries update-test-readme record-summaries \
 		VERBOSE=true NOPUSH=true NOPULL=true \
-	|| (ret=$$?; rmdir "${FULL_REPORT_DIR}/.LOCK" && exit $$ret)
-	rmdir "${FULL_REPORT_DIR}/.LOCK"
+	|| (ret=$$?; rmdir "${FULL_REPORT_LOCK_DIR}" && exit $$ret)
+	rmdir "${FULL_REPORT_LOCK_DIR}"
 	date
-	$(MAKE) push-reportdir || (echo "Push failed."; exit 1)
+	( [ -z "${FORCE_UPDATE}" ] && $(MAKE) push-reportdir ) || ( echo "Push ${ExternalReportDir} failed."; exit 1 )
 
 # This is a shorter spelling of the above target.
 # We don't try to run this target if the file exists (irrespective of timestamp)
 # Because of timing issues, we may have a situation where this file exists, but
 # doesn't "seem" new.
-record-test-main: $(if $(wildcard ${FULL_REPORT_DIR}/committed),,${FULL_REPORT_DIR}/committed)
+record-test-main:
+	( [ ! -z "${FORCE_UPDATE}" ] && $(RM) "${FULL_REPORT_DIR}/committed" ) || exit 0
+	( \
+		[ ! -f "${FULL_REPORT_DIR}/committed" ] \
+		&& $(MAKE) ${FULL_REPORT_DIR}/committed \
+	) || ( \
+		echo "Results in ${FULL_REPORT_DIR} exist. Bailing." ; \
+		echo "Run make with FORCE_UPDATE=true to override." ; \
+		exit 1 ; \
+	)
 
 # This target wraps the pull, test, and record-test targets to simplify calling
 # this makefile from cron
 pull-test-and-record:
-	[ ! -d "${FULL_REPORT_DIR}/.LOCK" ]
-	$(MAKE) record-test-main
-	[ ! -d "${MainRepoPath}/.LOCK" ]
+	[ ! -d "${FULL_REPORT_LOCK_DIR}" ]
+	$(MAKE) record-test-main || exit 0
+	[ ! -d "${MainRepoLockDir}" ]
 	$(MAKE) maybe-update-main-repo
 	$(MAKE) really-test-main
 	$(MAKE) record-test-main
@@ -405,6 +436,8 @@ run-main:
 # Note that this is likely to lead to far more failures, since no output that
 # usually lives in the main repo can be created. WIP
 run-main-local:
+	[ ! -d "${MainRepoLockDir}" ] || ( echo "${MainRepoPath} Locked. Bailing." ; exit 1 )
+	mkdir "${MainRepoLockDir}"
 	docker run \
 		--rm \
 		--workdir "/Documents" \
@@ -421,12 +454,15 @@ run-main-local:
 		--volume ${PWD}/TestOutput:${InternalReportDir} \
 		--volume ${PWD}/LocalSupportScripts:/LocalSupportScripts:ro \
 		${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared \
-		bash
+		bash \
+	|| exit 0
+	rmdir "${MainRepoLockDir}"
+	
 
 # This section only exists to clean up in the case of a "bad" interruption in a process
 remove-locks:
-	rmdir ${FULL_REPORT_DIR}/.LOCK || echo "${FULL_REPORT_DIR} not locked."
-	rmdir ${MainRepoPath}/.LOCK || echo "${MainRepoPath} not locked."
+	( [ -d "${FULL_REPORT_LOCK_DIR}" ] && rmdir ${FULL_REPORT_LOCK_DIR} ) || echo "${FULL_REPORT_DIR} not locked."
+	( [ -d "${MainRepoLockDir}" ] && rmdir "${MainRepoLockDir}" ) || echo "${MainRepoPath} not locked."
 
 force-cleanup: remove-locks cleanup-main-images
 	$(RM) -r ${FULL_REPORT_DIR}
@@ -434,15 +470,22 @@ force-cleanup: remove-locks cleanup-main-images
 endif # ExternalReportDir isempty if statement
 endif # MainRepoPath isempty if statement
 
-# This target cleans up generated images
+# This target cleans up generated images. We check if the list is empty to avoid
+# calling docker rmi with an empty argument.
 cleanup-all-images:
-	docker rmi $(shell docker images --all --format "{{.Repository}}:{{.Tag}}" | grep '${DOCKER_REPO_BASE}') || echo "No images to remove."
+	( \
+		imagesToRemove="$(shell docker images --all --format "{{.Repository}}:{{.Tag}}" | grep '${DOCKER_REPO_BASE}')" ; \
+		[ -z "${imagesToRemove}" ] && echo "No images to remove" || docker rmi ${imagesToRemove} \
+	)
 	docker system prune --force --volumes
 
 cleanup-main-images:
-	docker rmi $(shell docker images --all --format "{{.Repository}}:{{.Tag}}" | grep '${DOCKER_REPO_BASE}:main') || echo "No images to remove."
+	( \
+		imagesToRemove="$(shell docker images --all --format "{{.Repository}}:{{.Tag}}" | grep '${DOCKER_REPO_BASE}:main')" ; \
+		[ -z "${imagesToRemove}" ] && echo "No images to remove" || docker rmi ${imagesToRemove} \
+	)
 	docker system prune --force --volumes
 
 # Generic (safe) clean target
 clean: cleanup-main-images
-	$(RM) Documents*.tar
+	$(RM) ${PWD}/Documents-*
