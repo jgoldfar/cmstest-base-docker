@@ -220,10 +220,7 @@ Dockerfile.main: Makefile
 main-is-built:
 	docker inspect ${MAIN_REPO_IMAGE}
 
-REPO_UPDATE_CMD:=hg update
-ifneq (${FORCE_UPDATE},)
-REPO_UPDATE_CMD+=--clean
-endif
+REPO_UPDATE_CMD:=hg update --clean
 maybe-update-main-repo:
 	[ ! -d "${MainRepoPath}/.LOCK" ]
 	mkdir "${MainRepoPath}/.LOCK" \
@@ -323,7 +320,9 @@ test-main-local: ${PWD}/TestOutput/stderr.log
 # into a logfile. We save the logfile to a temporary file
 ${FULL_REPORT_DIR}/build.log:
 	mkdir -p "${FULL_REPORT_DIR}"
-	$(MAKE) test-main > "$@-tmp" 2>&1 || $(RM) "$@-tmp"
+	[ -f "$@-tmp" ] && echo "Check for errors in previous $@-tmp"
+	[ ! -f "$@-tmp" ]
+	$(MAKE) test-main > "$@-tmp" 2>&1
 	[ -f "$@-tmp" ] && mv $@-tmp $@
 
 # really-test-main is a shorter spelling of the above target.
@@ -351,7 +350,7 @@ push-reportdir: ${ExternalReportDir}/.git
 # are not interrupted.
 ${FULL_REPORT_DIR}/committed: ${FULL_REPORT_DIR}/build.log ${ExternalReportDir}/.git
 	$(MAKE) main-is-built || $(MAKE) build-main
-	$(MAKE) pull-reportdir || echo "Pull failed."
+	$(MAKE) pull-reportdir || (echo "Pull failed."; exit 1)
 	[ ! -d "${FULL_REPORT_DIR}/.LOCK" ]
 	date
 	mkdir "${FULL_REPORT_DIR}/.LOCK" \
@@ -369,13 +368,23 @@ ${FULL_REPORT_DIR}/committed: ${FULL_REPORT_DIR}/build.log ${ExternalReportDir}/
 	|| (ret=$$?; rmdir "${FULL_REPORT_DIR}/.LOCK" && exit $$ret)
 	rmdir "${FULL_REPORT_DIR}/.LOCK"
 	date
-	$(MAKE) push-reportdir || echo "Push failed."
+	$(MAKE) push-reportdir || (echo "Push failed."; exit 1)
 
 # This is a shorter spelling of the above target.
 # We don't try to run this target if the file exists (irrespective of timestamp)
 # Because of timing issues, we may have a situation where this file exists, but
 # doesn't "seem" new.
 record-test-main: $(if $(wildcard ${FULL_REPORT_DIR}/committed),,${FULL_REPORT_DIR}/committed)
+
+# This target wraps the pull, test, and record-test targets to simplify calling
+# this makefile from cron
+pull-test-and-record:
+	[ ! -d "${FULL_REPORT_DIR}/.LOCK" ]
+	$(MAKE) record-test-main
+	[ ! -d "${MainRepoPath}/.LOCK" ]
+	$(MAKE) maybe-update-main-repo
+	$(MAKE) really-test-main
+	$(MAKE) record-test-main
 
 # This target allows you to drop into the built image corresponding to a given REPORTID
 # to debug test failures.

@@ -47,7 +47,22 @@ Usage:
 I run these processes with a cron job on an Ubuntu workstation, but the build steps are replicated (to the extent that they can be) on Travis.
 Only the last image must be built and run on a machine having access to the main repository (which in my case is private) and test output repository.
 
-TBD
+Assuming the package is available under `$HOME/Public/cms-image`, it takes only one cron listing (always document non-obvious commands in your crontab!)
+
+```shell
+# Pull CMS Repository, and if new commits are to be tested, run IWS code
+# test script. 
+*/10 * * * * cd $HOME/Public/cms-image && date > testIWS.log && make pull-test-and-record >> testIWS.log 2>&1
+```
+
+There are a couple other targets that are kind to run regularly:
+```shell
+# Cleanup any inconsistencies on reboot
+@reboot cd $HOME/Public/cms-image && make force-cleanup force-clean-main-repo > cleanupIWS.log 2>&1
+#
+# Cleanup CMS images monthly
+@monthly cd $HOME/Public/cms-image && make cleanup-all-images > cleanup.log 2>&1
+```
 
 ## Build/Implementation Details
 
