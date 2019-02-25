@@ -54,7 +54,15 @@ RUN tlmgr init-usertree \
       fp \
       paralist \
       quotchap \
-      bookman
+      bookman \
+      # Resume repo
+      moderncv \
+      parskip \
+      l3packages \
+      l3kernel \
+      fontawesome \
+      multibib
+      
 
 # Clone all git repositories intended to ship along with CMS
 

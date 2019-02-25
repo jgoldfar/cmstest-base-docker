@@ -424,7 +424,6 @@ run-main:
 	docker run \
 		--rm \
 		--tty --interactive \
-		--user ${USERINFO} \
 		--attach stderr \
 		--attach stdout \
 		--volume ${ExternalReportDir}:${InternalReportDir} \
