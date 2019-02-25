@@ -77,14 +77,14 @@ usage:
 
 
 ##
-# "Generic" image build
-build-%: Dockerfile.%
+# "Base" image build
+build-base: Dockerfile.base
 	docker build \
 		-f $< \
-		-t ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:$* .
+		-t ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:base .
 
-push-%: build-%
-	docker push ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:$*
+push-base: build-base
+	docker push ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:base
 
 .PHONY: base build-base push-base
 base: build-base push-base
