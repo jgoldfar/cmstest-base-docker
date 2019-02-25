@@ -14,9 +14,11 @@ RUN apt-get -qq update \
 
 COPY minimal.profile .
 
-# Install LaTeX
+# Install LaTeX. The user's texmf and texlive directories are initialized.
 RUN curl -L http://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz -o install-tl-unx.tar.gz && \
     tar xzf install-tl-unx.tar.gz && \
+    mkdir -p /data/texmf && chmod a+wrx /data/texmf && \
+    mkdir -p /data/texlive && chmod a+wrx /data/texlive && \
     ./install-tl-*/install-tl -profile ./minimal.profile && \
     rm -rf minimal.profile install-tl-*
 
@@ -83,7 +85,6 @@ RUN apt-get -qq -y remove \
       git \
       texinfo \
       python \
-      sbcl \
       autoconf \
       automake \
     && apt-get -qq -y autoremove \

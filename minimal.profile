@@ -3,12 +3,12 @@
 # installation profile at installation time.
 selected_scheme scheme-custom
 TEXDIR /usr/local/texlive/2018
-TEXMFCONFIG ~/Library/texlive/2018/texmf-config
-TEXMFHOME ~/Library/texmf
+TEXMFCONFIG /data/texlive/2018/texmf-config
+TEXMFHOME /data/texmf
 TEXMFLOCAL /usr/local/texlive/texmf-local
 TEXMFSYSCONFIG /usr/local/texlive/2018/texmf-config
 TEXMFSYSVAR /usr/local/texlive/2018/texmf-var
-TEXMFVAR ~/Library/texlive/2018/texmf-var
+TEXMFVAR /data/texlive/2018/texmf-var
 collection-basic 1
 collection-latex 1
 instopt_adjustpath 0
