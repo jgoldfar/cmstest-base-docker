@@ -223,7 +223,8 @@ Dockerfile.main: Makefile
 	@echo "    REPORTID=${REPORTID} \\" >> $@
 	@echo "    REPORTDATE=${REPORTDATE} \\" >> $@
 	@echo "    JULIA_LOAD_PATH=\"/${InternalRepoStem}/misc/julia\" \\" >> $@
-	@echo "    JULIA_ARGS=\"--project=/${InternalRepoStem}/misc/julia/CMSTest\"" >> $@
+	@echo "    JULIA_ARGS=\"--project=/${InternalRepoStem}/misc/julia/CMSTest\" \\" >> $@
+	@echo "    CMSTEST_CI=true \\" >> $@
 	@echo "" >> $@
 	@echo "WORKDIR /${InternalRepoStem}" >> $@
 

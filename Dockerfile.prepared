@@ -55,13 +55,25 @@ RUN tlmgr init-usertree \
       paralist \
       quotchap \
       bookman \
-      # Resume repo
+      # misc/resume repo, among others
       moderncv \
       parskip \
       l3packages \
       l3kernel \
       fontawesome \
-      multibib
+      multibib \
+      # research/talks
+      mdwtools \
+      # work/Calc1
+      exam \
+      # grad/dissertation
+      titling \
+      # notes/complex
+      tikz-3dplot \
+      # research/seminar
+      esint \
+      # work/siam-chapter
+      filecontents
       
 
 # Clone all git repositories intended to ship along with CMS
