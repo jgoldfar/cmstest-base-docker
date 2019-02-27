@@ -76,7 +76,7 @@ RUN mkdir -p ${MaximaPath} && \
     git clone https://github.com/jgoldfar/maxima-clone.git ${MaximaPath} && \
     cd ${MaximaPath} && \
     ./bootstrap && \
-    ./configure --enable-sbcl --prefix=/usr/local --enable-quiet-build && \
+    ./configure --enable-sbcl --enable-sbcl-exec --prefix=/usr/local --enable-quiet-build && \
     make install > maxima-build.log 2>&1 && \
     rm -rf ${MaximaPath}
 
@@ -85,6 +85,7 @@ RUN apt-get -qq -y remove \
       git \
       texinfo \
       python \
+      sbcl \
       autoconf \
       automake \
     && apt-get -qq -y autoremove \
@@ -92,7 +93,6 @@ RUN apt-get -qq -y remove \
     && rm -rf /var/lib/apt/lists/* /var/log/dpkg.log
 
 # Prepare Julia v0.7 installation
-# Prepare Maxima installation
 RUN apt-get -qq update \
     && apt-get -qq -y --no-install-recommends install \
       curl
