@@ -430,11 +430,14 @@ pull-test-and-record:
 
 # This target allows you to drop into the built image corresponding to a given REPORTID
 # to debug test failures.
+# To install packages, set RUN_MAIN_AS_ROOT to be nonempty
+RUN_MAIN_AS_ROOT?=
 run-main:
 	$(MAKE) main-is-built || $(MAKE) build-main
 	docker run \
 		--rm \
 		--tty --interactive \
+		$(shell [ ! -z "${RUN_MAIN_AS_ROOT}" ] || echo "--user ${USERINFO}" ) \
 		--attach stderr \
 		--attach stdout \
 		--volume ${ExternalReportDir}:${InternalReportDir} \
