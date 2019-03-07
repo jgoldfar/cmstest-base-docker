@@ -39,7 +39,7 @@ USERINFO:=$(shell id -u):$(shell id -g)
 Report_Repo_Branch?=$(shell uname -s)
 
 # Local path to SSH key authenticated to Github and Bitbucket
-SSH_PRV_KEY_FILE?=/home/jgoldfar/.ssh/id_rsa
+SSH_PRV_KEY_FILE?=${HOME}/.ssh/id_rsa
 
 # Local path to updated main repository. We should only be generating these
 # targets on non-CI machines (for now) so this will be empty if CI is not.
@@ -141,9 +141,6 @@ status:
 	@echo REPORTDATE: ${REPORTDATE} "("$(shell date -d "@${REPORTDATE}")")"
 	@echo MainRepoPath: ${MainRepoPath}
 	@echo FULL_REPORT_DIR: ${FULL_REPORT_DIR}
-	@$(MAKE) main-is-built > /dev/null 2>&1 \
-	&& echo "MAIN_REPO_IMAGE: ${MAIN_REPO_IMAGE} (Exists)" \
-	|| echo "MAIN_REPO_IMAGE: ${MAIN_REPO_IMAGE} (Missing)"
 	@[ -f "${FULL_REPORT_DIR}/stderr.log" ] \
 	&& echo "REPORTID Tested: True (has stderr.log)" \
 	|| echo "REPORTID Tested: False (has no stderr.log)"
@@ -163,6 +160,21 @@ status:
 	&& echo "FULL_REPORT_DIR Contents (ls -l):" \
 	&& ls -l ${FULL_REPORT_DIR} \
 	|| echo "FULL_REPORT_DIR Contents: Empty"
+	@[ -f "${FULL_REPORT_DIR}/build.log" ] \
+	&& ( \
+		echo "tail of ${FULL_REPORT_DIR}/build.log:"; \
+		tail "${FULL_REPORT_DIR}/build.log" \
+	) \
+	|| echo "${FULL_REPORT_DIR}/build.log Missing."
+	@[ -f "${FULL_REPORT_DIR}/build.log-tmp" ] \
+	&& ( \
+		echo "tail of ${FULL_REPORT_DIR}/build.log-tmp:"; \
+		tail "${FULL_REPORT_DIR}/build.log-tmp" \
+	) \
+	|| echo "${FULL_REPORT_DIR}/build.log-tmp Missing."
+	@$(MAKE) main-is-built > /dev/null 2>&1 \
+	&& echo "MAIN_REPO_IMAGE: ${MAIN_REPO_IMAGE} (Exists)" \
+	|| echo "MAIN_REPO_IMAGE: ${MAIN_REPO_IMAGE} (Missing)"
 
 # Build an image containing a snapshot of ${MainRepoPath} at the given REPORTID
 # NOTE The generated directory name must match the directory under `/` that we will
@@ -488,7 +500,7 @@ endif # MainRepoPath isempty if statement
 cleanup-all-images:
 	( \
 		imagesToRemove="$(shell docker images --all --format "{{.Repository}}:{{.Tag}}" | grep '${DOCKER_REPO_BASE}')" ; \
-		[ -z "${imagesToRemove}" ] && echo "No images to remove" || docker rmi ${imagesToRemove} \
+		[ -z "$${imagesToRemove}" ] && echo "No images to remove" || docker rmi ${imagesToRemove} \
 	)
 	docker system prune --force --volumes
 
