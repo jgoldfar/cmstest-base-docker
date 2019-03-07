@@ -7,7 +7,8 @@ RUN apt-get -qq update \
       openssh-client \
       gnuplot \
       git \
-      mercurial
+      mercurial \
+      imagemagick
 
 # Install LaTeX packages for whole system
 RUN tlmgr init-usertree \
@@ -86,7 +87,10 @@ RUN tlmgr init-usertree \
       chngcntr \
       matlab-prettifier \
       beamerposter \
-      ifsym
+      ifsym \
+      boolexpr \
+      pslatex \
+      ulem
       
       
 
