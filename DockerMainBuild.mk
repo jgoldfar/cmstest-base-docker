@@ -1,3 +1,15 @@
+# Usage information
+usage-targets: usage-targets-dockermainbuild
+
+usage-targets-dockermainbuild:
+	@echo ""
+	@echo "    - build-main: Export ${MainRepoPath} and create corresponding Docker image."
+	@echo "    - main-is-built: Check if current revision's Docker image is built."
+
+usage-variables: usage-variables-dockermainbuild
+usage-variables-dockermainbuild:
+## End usage information
+
 # Build an image containing a snapshot of ${MainRepoPath} at the given REPORTID
 # NOTE The generated directory name must match the directory under `/` that we will
 # be running the generated tests from. This is enforced by generating the files

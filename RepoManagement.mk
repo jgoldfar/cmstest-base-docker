@@ -1,3 +1,16 @@
+# Usage information
+usage-targets: usage-targets-repomanagement
+
+usage-targets-repomanagement:
+	@echo ""
+	@echo "    - maybe-update-main-repo: Update ${MainRepoPath} if not locked."
+	@echo "    - force-clean-main-repo: Update ${MainRepoPath} without checking for locks."
+
+usage-variables: usage-variables-repomanagement
+usage-variables-repomanagement:
+# End usage information
+
+# Carefully pull and update the main repository
 .PHONY: maybe-update-main-repo
 REPO_UPDATE_CMD:=hg update --clean
 maybe-update-main-repo:
@@ -10,6 +23,7 @@ maybe-update-main-repo:
 	|| (ret=$$?; rmdir "${MainRepoLockDir}" && exit $$ret)
 	rmdir "${MainRepoLockDir}"
 
+# Remove locks before trying above target
 .PHONY: force-clean-main-repo
 force-clean-main-repo:
 	@( [ -d "${MainRepoLockDir}" ] && rmdir "${MainRepoLockDir}" ) || exit 0

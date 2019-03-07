@@ -56,7 +56,7 @@ MainRepoLockDir:=${MainRepoPath}/.LOCK
 ExternalReportDir?=/Users/jgoldfar/test-${Report_Repo_Branch}
 
 # Internal path to test output directory
-InternalReportDir?=/Tests
+InternalReportDir:=/Tests
 
 # Within the repo in MainRepoPath, we will expect to be running commands
 # from this makefile.
@@ -66,31 +66,41 @@ CMSMakefile=misc/julia/CMSTest/ex/crontab/Makefile
 FORCE_UPDATE?=
 
 # Generic usage string. Use Make's subst command to interpolate the target.
-USAGE_STRING:="Usage: make __tmp__ MainRepoPath=/path/to/Documents ExternalReportDir=/path/to/testdir"
+USAGE_STRING:="Usage: make __tmp__"
 ## End Configurable Variables
 
 
 ## Start main set of targets
-.PHONY: usage
-usage:
-	@echo $(subst __tmp__,[TARGET],${USAGE_STRING})
 
+# Usage messages
+.PHONY: usage usage-main
+usage: usage-main usage-targets usage-useful-variables usage-variables
+
+usage-main:
+	@echo $(subst __tmp__,[TARGET],${USAGE_STRING})
+	@echo ""
+	@echo " Valid TARGETs:"
+
+usage-useful-variables:
+	@echo ""
+	@echo " Useful Variables:"
+	@echo "    - MainRepoPath: Path to local clone of test repository. Default: ${MainRepoPath}"
+	@echo "    - ExternalReportDir: Path to local clone of report recording repository. Default: ${ExternalReportDir}"
+	@echo "    - FORCE_UPDATE: Set nonempty to overwrite existing test results."
+	@echo "    - Report_Repo_Branch: Branch used to record test results. Default: ${Report_Repo_Branch}"
+	@echo "    - SSH_PRV_KEY_FILE: Path to local private key file authenticated to Github & Bitbucket."
+	@echo "    - HG: Path to mercurial executable. Default: ${HG}"
+
+usage-targets: usage-main-targets
+
+usage-main-targets:
+	@echo "   - usage: Show this message."
+	@echo "   - cleanup-all-images: Remove all generated images."
+	@echo "   - cleanup-main-images: Remove main images."
+	@echo "   - force-cleanup: Remove test results and all dependencies for current revision."
 
 # Include targets for building "base" images
 include DockerBaseBuild.mk
-
-
-##
-# "Main" image build and test run
-# We first test if MainRepoPath isempty; if so, emit a usage message and bail.
-ifeq ($(MainRepoPath),)
-build-main:
-	@echo $(subst __tmp__,$@,${USAGE_STRING})
-	@exit 1
-
-##
-# When MainRepoPath is not empty, we can build the main image
-else
 
 # Include recipe to derive variables from configuration
 include DerivedVariables.mk
@@ -100,29 +110,6 @@ include DockerMainBuild.mk
 
 # Include targets for managing the main repository
 include RepoManagement.mk
-
-##
-# Check that ExternalReportDir isempty, MainRepoPath is not empty
-# If so, emit a usage message for test-main and push-test-main (which
-# cannot run in this situation.)
-ifeq ($(ExternalReportDir),)
-test-main:
-	@echo $(subst __tmp__,$@,${USAGE_STRING})
-	@exit 1
-
-push-test-main:
-	@echo $(subst __tmp__,$@,${USAGE_STRING})
-	@exit 1
-
-run-main:
-	@echo $(subst __tmp__,$@,${USAGE_STRING})
-	@exit 1
-
-##
-# If ExternalReportDir is not empty and MainRepoPath is not empty
-# We can run test-main, push-test-main, and run-main
-else
-
 
 # Include main test targets
 include Runtests.mk
@@ -136,22 +123,19 @@ remove-locks:
 force-cleanup: remove-locks cleanup-main-images
 	$(RM) -r ${FULL_REPORT_DIR}
 
-endif # ExternalReportDir isempty if statement
-endif # MainRepoPath isempty if statement
-
 # This target cleans up generated images. We check if the list is empty to avoid
 # calling docker rmi with an empty argument.
 cleanup-all-images:
 	( \
 		imagesToRemove="$(shell docker images --all --format "{{.Repository}}:{{.Tag}}" | grep '${DOCKER_REPO_BASE}')" ; \
-		[ -z "$${imagesToRemove}" ] && echo "No images to remove" || docker rmi ${imagesToRemove} \
+		[ -z "$${imagesToRemove}" ] && echo "No images to remove" || docker rmi $${imagesToRemove} \
 	)
 	docker system prune --force --volumes
 
 cleanup-main-images:
 	( \
 		imagesToRemove="$(shell docker images --all --format "{{.Repository}}:{{.Tag}}" | grep '${DOCKER_REPO_BASE}:main')" ; \
-		[ -z "$${imagesToRemove}" ] && echo "No images to remove" || docker rmi ${imagesToRemove} \
+		[ -z "$${imagesToRemove}" ] && echo "No images to remove" || docker rmi $${imagesToRemove} \
 	)
 	docker system prune --force --volumes
 

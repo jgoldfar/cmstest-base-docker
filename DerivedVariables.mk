@@ -1,3 +1,15 @@
+# Usage information
+usage-targets: usage-targets-derivedvariables
+
+usage-targets-derivedvariables:
+	@echo ""
+	@echo "    - status: Emit status information for CMSTest system."
+
+usage-variables: usage-variables-derivedvariables
+usage-variables-derivedvariables:
+	@echo "    - REPORTID: revision ID to test. Default: previous revision in MainRepoPath."
+# End usage information
+
 # Derive REPORTID from HG node hash from MainRepoPath. If you provide a hg id
 # on the command line, we'll do our best to run tests against that revision, but
 # with subrepos things can get complicated...

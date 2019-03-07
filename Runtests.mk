@@ -1,3 +1,20 @@
+# Usage information
+usage-targets: usage-targets-runtests
+
+usage-targets-runtests:
+	@echo ""
+	@echo "    - test-main: Run tests into ${FULL_REPORT_DIR}"
+	@echo "    - test-main-local: Run tests for ${MainRepoPath} as a read-only volume into TestOutput."
+	@echo "    - really-test-main: Run test-main while also saving stderr/stdout into a logfile."
+	@echo "    - {pull,push}-reportdir: Pull or push results from ${ExternalReportDir}."
+	@echo "    - record-test-main: Generate summary information and record to repository after test-main completes."
+	@echo "    - pull-test-and-record: Orchestrate entire test sequence: pull, test, record."
+	@echo "    - run-main: Start bash shell in latest main image. Run with RUN_MAIN_AS_ROOT=true to run as root."
+
+usage-variables: usage-variables-runtests
+usage-variables-runtests:
+## End usage information
+
 # This target runs tests. As part of that, it creates a lockfile in the report directory,
 # so only one such set of tests will be run.
 ${FULL_REPORT_DIR}/stderr.log:
