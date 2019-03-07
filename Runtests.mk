@@ -49,14 +49,15 @@ test-main:
 	)
 	$(MAKE) ${FULL_REPORT_DIR}/stderr.log
 
-# Capture the PATH variable from the "Prepared" image
-Prepared_Image_Path:=$(shell docker run --attach stdout --volume ${PWD}/LocalSupportScripts:/LocalSupportScripts ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared /LocalSupportScripts/echo-path)
+# Command to capture the PATH variable from the "Prepared" image
+Prepared_Image_Path_Command:=docker run --attach stdout --volume ${PWD}/LocalSupportScripts:/LocalSupportScripts ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared /LocalSupportScripts/echo-path
 
 # This target runs the same test suite against the repository as it currently
 # exists. The MainRepoPath is mapped to a read-only volume in the image.
 # Note that this is likely to lead to far more failures, since no output that
 # usually lives in the main repo can be created. WIP
 ${PWD}/TestOutput/stderr.log:
+	Prepared_Image_Path=$(shell ${Prepared_Image_Path_Command}) && \
 	docker run \
 		--rm \
 		--workdir "/Documents" \
@@ -69,7 +70,7 @@ ${PWD}/TestOutput/stderr.log:
 		--env REPORTID=${REPORTID}-dev \
 		--env JULIA_LOAD_PATH="/Documents/misc/julia" \
 		--env JULIA_ARGS="--project=/Documents/misc/julia/CMSTest" \
-		--env PATH="/LocalSupportScripts:${Prepared_Image_Path}" \
+		--env PATH="/LocalSupportScripts:$${Prepared_Image_Path}" \
 		--volume ${PWD}/TestOutput:${InternalReportDir} \
 		--volume ${PWD}/LocalSupportScripts:/LocalSupportScripts:ro \
 		${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared \
@@ -92,7 +93,7 @@ ${FULL_REPORT_DIR}/build.log:
 	@( [ -f "$@-tmp" ] && mv $@-tmp $@ ) || ( echo "Creation of temporary output failed. Check logfiles." ; exit 1 )
 
 # really-test-main is a shorter spelling of the above target.
-really-test-main: 
+really-test-main:
 	@[ ! -z "${FORCE_UPDATE}" ] && $(RM) "${FULL_REPORT_DIR}/build.log" || exit 0
 	@[ ! -f "${FULL_REPORT_DIR}/build.log" ] ||	( \
 			echo "Previous output ${FULL_REPORT_DIR}/build.log exists. Bailing." ; \
@@ -193,6 +194,7 @@ run-main:
 run-main-local:
 	@[ ! -d "${MainRepoLockDir}" ] || ( echo "${MainRepoPath} Locked. Bailing." ; exit 1 )
 	mkdir "${MainRepoLockDir}"
+	Prepared_Image_Path=$(shell ${Prepared_Image_Path_Command}) && \
 	docker run \
 		--rm \
 		--workdir "/Documents" \
@@ -205,7 +207,7 @@ run-main-local:
 		--env REPORTID=${REPORTID}-dev \
 		--env JULIA_LOAD_PATH="/Documents/misc/julia" \
 		--env JULIA_ARGS="--project=/Documents/misc/julia/CMSTest" \
-		--env PATH="/LocalSupportScripts:${Prepared_Image_Path}" \
+		--env PATH="/LocalSupportScripts:$${Prepared_Image_Path}" \
 		--volume ${PWD}/TestOutput:${InternalReportDir} \
 		--volume ${PWD}/LocalSupportScripts:/LocalSupportScripts:ro \
 		${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared \

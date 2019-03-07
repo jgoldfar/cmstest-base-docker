@@ -30,12 +30,18 @@ FULL_REPORT_LOCK_DIR:=${FULL_REPORT_DIR}/.LOCK
 # TEXINPUTS is set to the value below:
 Internal_TEXINPUTS:=/${InternalRepoStem}/misc/env/tex-include/Templates/:
 
+ifeq ($(shell uname -s),Darwin)
+_DATE_HR:=$(shell date -r ${REPORTDATE})
+else
+_DATE_HR:=$(shell date -d @${REPORTDATE})
+endif
+
 # This target just shows the make variables we would use to run a particular build,
 # as well as some general status information.
 .PHONY: status
 status:
 	@echo REPORTID: ${REPORTID}
-	@echo REPORTDATE: ${REPORTDATE} "("$(shell date -d "@${REPORTDATE}")")"
+	@echo REPORTDATE: ${REPORTDATE} "("${_DATE_HR}")"
 	@echo MainRepoPath: ${MainRepoPath}
 	@echo FULL_REPORT_DIR: ${FULL_REPORT_DIR}
 	@[ -f "${FULL_REPORT_DIR}/stderr.log" ] \
