@@ -61,11 +61,13 @@ Dockerfile.main: Makefile
 	@echo "ADD ./${InternalRepoStem} /${InternalRepoStem}" >> $@
 	@echo "" >> $@
 	@echo "RUN chown -R ${USERINFO} /${InternalRepoStem} \\" >> $@
-	@echo "    && make -C /${InternalRepoStem}/misc/env/bin latex/.chktexrc LATEX_TEMPLATE_INSTALL_ROOT=/${InternalRepoStem}" >> $@
+	@echo "    && make -C /${InternalRepoStem}/misc/env/bin latex/.chktexrc LATEX_TEMPLATE_INSTALL_ROOT=/${InternalRepoStem} \\" >> $@
+	@echo "    && make -C /${InternalRepoStem}/misc/env/bin latex/.latexmkrc LATEX_TEMPLATE_INSTALL_ROOT=/${InternalRepoStem}" >> $@
 	@echo "" >> $@
 	@echo "ENV TEXINPUTS=\"${Internal_TEXINPUTS}\" \\" >> $@
 	@echo "    REPOROOT=\"/${InternalRepoStem}\" \\" >> $@
 	@echo "    CHKTEXRC=\"/${InternalRepoStem}/misc/env/bin/latex/.chktexrc\" \\" >> $@
+	@echo "    LATEXMKRCSYS=\"/${InternalRepoStem}/misc/env/bin/latex/.latexmkrc\" \\" >> $@
 	@echo "    REPORTDIR=\"${InternalReportDir}\" \\" >> $@
 	@echo "    REPORTID=${REPORTID} \\" >> $@
 	@echo "    REPORTDATE=${REPORTDATE} \\" >> $@
