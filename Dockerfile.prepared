@@ -3,6 +3,7 @@ MAINTAINER Jonathan Goldfarb <jgoldfar@my.fit.edu>
 
 RUN apt-get -qq update \
     && apt-get -qq -y --no-install-recommends install \
+      make \
       wget \
       openssh-client \
       gnuplot \

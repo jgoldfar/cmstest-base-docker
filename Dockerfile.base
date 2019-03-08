@@ -1,8 +1,7 @@
 FROM debian:stretch-slim
 MAINTAINER Jonathan Goldfarb <jgoldfar@my.fit.edu>
 
-# TODO: Add installation for all packages needed for all builds/installs below.
-# Prepare for LaTeX Installation
+# Prepare for all package installation simultaneously
 RUN apt-get -qq update \
     && apt-get -qq -y --no-install-recommends install \
       ca-certificates \
@@ -10,7 +9,26 @@ RUN apt-get -qq update \
       python \
       perl \
       curl \
-      wget
+      wget \
+      bzip2 \
+      git \
+      texinfo \
+      python \
+      sbcl \
+      autoconf \
+      automake \
+      gnupg2 \
+      dirmngr
+
+# 1: Prepare for LaTeX Installation
+#RUN apt-get -qq update \
+#    && apt-get -qq -y --no-install-recommends install \
+#      ca-certificates \
+#      make \
+#      python \
+#      perl \
+#      curl \
+#      wget
 
 COPY minimal.profile .
 
@@ -27,20 +45,20 @@ RUN curl -L http://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz -
 
 ENV PATH="/usr/local/texlive/2018/bin/x86_64-linux/:${PATH}"
 
-RUN apt-get -qq -y remove \
-      python \
-      curl \
-      wget \
-    && apt-get -qq -y autoremove \
-    && apt-get autoclean \
-    && rm -rf /var/lib/apt/lists/* /var/log/dpkg.log
+#RUN apt-get -qq -y remove \
+#      python \
+#      curl \
+#      wget \
+#    && apt-get -qq -y autoremove \
+#    && apt-get autoclean \
+#    && rm -rf /var/lib/apt/lists/* /var/log/dpkg.log
 
 
 # Prepare for Miniconda 3 Installation
-RUN apt-get -qq update \
-    && apt-get -qq -y --no-install-recommends install \
-      curl \
-      bzip2
+#RUN apt-get -qq update
+#RUN apt-get -qq -y --no-install-recommends install \
+#      curl \
+#      bzip2
 
 # Install Miniconda3
 RUN curl -sSL https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -o /tmp/miniconda.sh \
@@ -51,28 +69,29 @@ RUN curl -sSL https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64
     && conda clean --all --yes
 
 # Finish Miniconda3 installation
-RUN apt-get -qq -y remove \
-      curl \
-      bzip2 \
-    && apt-get -qq -y autoremove \
-    && apt-get autoclean \
-    && rm -rf /var/lib/apt/lists/* /var/log/dpkg.log
+#RUN apt-get -qq -y remove \
+#      curl \
+#      bzip2 \
+#    && apt-get -qq -y autoremove \
+#    && apt-get autoclean \
+#    && rm -rf /var/lib/apt/lists/* /var/log/dpkg.log
 
 
 # Prepare Maxima installation
-RUN apt-get -qq update \
-    && apt-get -qq -y --no-install-recommends install \
-      git \
-      texinfo \
-      python \
-      sbcl \
-      autoconf \
-      automake
+#RUN apt-get -qq update \
+#    && apt-get -qq -y --no-install-recommends install \
+#      git \
+#      texinfo \
+#      python \
+#      sbcl \
+#      autoconf \
+#      automake
 
-ENV MaximaPath=/opt/maxima
+#ENV MaximaPath=/opt/maxima
 
 ## Install/Build Maxima
-RUN mkdir -p ${MaximaPath} && \
+RUN MaximaPath=/opt/maxima && \
+    mkdir -p ${MaximaPath} && \
     git clone https://github.com/jgoldfar/maxima-clone.git ${MaximaPath} && \
     cd ${MaximaPath} && \
     ./bootstrap && \
@@ -81,24 +100,24 @@ RUN mkdir -p ${MaximaPath} && \
     rm -rf ${MaximaPath}
 
 # Finish Maxima installation
-RUN apt-get -qq -y remove \
-      git \
-      texinfo \
-      python \
-      sbcl \
-      autoconf \
-      automake \
-    && apt-get -qq -y autoremove \
-    && apt-get autoclean \
-    && rm -rf /var/lib/apt/lists/* /var/log/dpkg.log
+#RUN apt-get -qq -y remove \
+#      git \
+#      texinfo \
+#      python \
+#      sbcl \
+#      autoconf \
+#      automake \
+#    && apt-get -qq -y autoremove \
+#    && apt-get autoclean \
+#    && rm -rf /var/lib/apt/lists/* /var/log/dpkg.log
 
 # Prepare Julia v0.7 installation
-RUN apt-get -qq update \
-    && apt-get -qq -y --no-install-recommends install \
-      curl
+#RUN apt-get -qq update \
+#    && apt-get -qq -y --no-install-recommends install \
+#      curl
 
 ENV JULIA_PATH /usr/local/julia
-ENV PATH=$JULIA_PATH/bin:$PATH
+ENV PATH=${JULIA_PATH}/bin:${PATH}
 
 # https://julialang.org/downloads/
 ENV JULIA_VERSION 0.7.0
@@ -139,6 +158,7 @@ RUN set -eux; \
   echo "${sha256} *julia.tar.gz" | sha256sum -c -; \
   \
   export GNUPGHOME="$(mktemp -d)"; \
+  echo "disable-ipv6" >> $GNUPGHOME/dirmngr.conf ; \
   ( gpg2 --batch --keyserver ha.pool.sks-keyservers.net --recv-keys "$JULIA_GPG" \
   || gpg2 --batch --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys "$JULIA_GPG" \
   || gpg2 --batch --keyserver hkp://pgp.mit.edu:80 --recv-keys "$JULIA_GPG" \
@@ -159,11 +179,28 @@ RUN set -eux; \
   julia --version
 
 # Finish Julia v0.7 Installation
+#RUN apt-get -qq -y remove \
+#      curl \
+#    && apt-get -qq -y autoremove \
+#    && apt-get autoclean \
+#    && rm -rf /var/lib/apt/lists/* /var/log/dpkg.log
+
+# Clean up package installation to reduce image size
 RUN apt-get -qq -y remove \
+      make \
+      python \
+      perl \
       curl \
+      wget \
+      bzip2 \
+      git \
+      texinfo \
+      python \
+      sbcl \
+      autoconf \
+      automake \
+      gnupg2 \
+      dirmngr \
     && apt-get -qq -y autoremove \
     && apt-get autoclean \
     && rm -rf /var/lib/apt/lists/* /var/log/dpkg.log
-
-# TODO: Move above to single step,
-# Clean up package installation to reduce image size
