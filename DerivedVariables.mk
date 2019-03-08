@@ -13,9 +13,9 @@ usage-variables-derivedvariables:
 # Derive REPORTID from HG node hash from MainRepoPath. If you provide a hg id
 # on the command line, we'll do our best to run tests against that revision, but
 # with subrepos things can get complicated...
-REPORTID?=$(shell $(HG) log --cwd $(MainRepoPath) -l 1 -T '{node}')
+REPORTID?=$(shell ( [ -d "${MainRepoPath}" ] && [ -f "$(HG)" ] ) && ( $(HG) log --cwd "${MainRepoPath}" -l 1 -T '{node}' ) || echo 0 )
 # Derive REPORTDATE from corresponding hgdate
-REPORTDATE:=$(shell $(HG) log --cwd $(MainRepoPath) -r "$(REPORTID)" -T '{word(0, date|hgdate)}')
+REPORTDATE:=$(shell ( [ -d "${MainRepoPath}" ] && [ -f "$(HG)" ] ) && ( $(HG) log --cwd $(MainRepoPath) -r "$(REPORTID)" -T '{word(0, date|hgdate)}' ) || echo 0 )
 # The generated main image will have the tag below:
 MAIN_REPO_IMAGE:=${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:main-${REPORTID}
 # Internal path to main repository.
@@ -30,10 +30,10 @@ FULL_REPORT_LOCK_DIR:=${FULL_REPORT_DIR}/.LOCK
 # TEXINPUTS is set to the value below:
 Internal_TEXINPUTS:=/${InternalRepoStem}/misc/env/tex-include/Templates/:
 
-ifeq ($(shell uname -s),Darwin)
-_DATE_HR:=$(shell date -r ${REPORTDATE})
+ifeq (${UNAME_S},Darwin)
+_DATE_HR_CMD:=date -r
 else
-_DATE_HR:=$(shell date -d @${REPORTDATE})
+_DATE_HR_CMD:=date -d @
 endif
 
 # This target just shows the make variables we would use to run a particular build,
@@ -41,7 +41,7 @@ endif
 .PHONY: status
 status:
 	@echo REPORTID: ${REPORTID}
-	@echo REPORTDATE: ${REPORTDATE} "("${_DATE_HR}")"
+	@echo REPORTDATE: ${REPORTDATE} "("$(shell ${_DATE_HR_CMD}${REPORTDATE} )")"
 	@echo MainRepoPath: ${MainRepoPath}
 	@echo FULL_REPORT_DIR: ${FULL_REPORT_DIR}
 	@[ -f "${FULL_REPORT_DIR}/stderr.log" ] \

@@ -5,8 +5,8 @@ usage-targets-dockerbasebuild:
 	@echo ""
 	@echo "    - build-base: Build ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:base"
 	@echo "    - push-base: Push ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:base to Docker Hub"
-	@echo "    - build-base: Build ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared"
-	@echo "    - push-base: Push ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared to Docker Hub"
+	@echo "    - build-prepared: Build ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared"
+	@echo "    - push-prepared: Push ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared to Docker Hub"
 
 usage-variables: usage-variables-dockerbasebuild
 usage-variables-dockerbasebuild:

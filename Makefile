@@ -15,8 +15,9 @@
 #      stdout.log files.
 
 ## Start configurable variables
-HG?=$(shell which hg)
-PWD=$(shell pwd)
+HG:=$(shell which hg)
+PWD:=$(shell pwd)
+UNAME_S:=$(shell uname -s)
 
 # Set explicit shell
 export SHELL:=/bin/bash
@@ -36,7 +37,7 @@ USERINFO:=$(shell id -u):$(shell id -g)
 
 # This is the default branch we use to report these test results, as well as
 # a suffix for the test directory.
-Report_Repo_Branch?=$(shell uname -s)
+Report_Repo_Branch:=${UNAME_S}
 
 # Local path to SSH key authenticated to Github and Bitbucket
 SSH_PRV_KEY_FILE?=${HOME}/.ssh/id_rsa
@@ -60,7 +61,7 @@ InternalReportDir:=/Tests
 
 # Within the repo in MainRepoPath, we will expect to be running commands
 # from this makefile.
-CMSMakefile=misc/julia/CMSTest/ex/crontab/Makefile
+CMSMakefile:=misc/julia/CMSTest/ex/crontab/Makefile
 
 # If FORCE_UPDATE is nonempty, we'll update over any existing changes.
 FORCE_UPDATE?=
@@ -87,9 +88,9 @@ usage-useful-variables:
 	@echo "    - MainRepoPath: Path to local clone of test repository. Default: ${MainRepoPath}"
 	@echo "    - ExternalReportDir: Path to local clone of report recording repository. Default: ${ExternalReportDir}"
 	@echo "    - FORCE_UPDATE: Set nonempty to overwrite existing test results."
-	@echo "    - Report_Repo_Branch: Branch used to record test results. Default: ${Report_Repo_Branch}"
+	@echo "    - Report_Repo_Branch: Branch used to record test results. Value: ${Report_Repo_Branch}"
 	@echo "    - SSH_PRV_KEY_FILE: Path to local private key file authenticated to Github & Bitbucket."
-	@echo "    - HG: Path to mercurial executable. Default: ${HG}"
+	@echo "    - HG: Path to mercurial executable. Value: ${HG}"
 
 usage-targets: usage-main-targets
 
