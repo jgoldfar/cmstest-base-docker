@@ -53,6 +53,7 @@ ${REPO_OUTPUT_PATH}:
 # NOTE: InternalRepoStem and the name of the tarball have to be kept in sync as
 # above.
 .DELETE_ON_ERROR: Dockerfile.main
+.INTERMEDIATE: Dockerfile.main
 Dockerfile.main: Makefile
 	@echo "FROM ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared" > $@
 	@echo "" >> $@
