@@ -9,7 +9,8 @@ RUN apt-get -qq update \
       gnuplot \
       git \
       mercurial \
-      imagemagick
+      imagemagick \
+      texlive-font-utils
 
 # Install LaTeX packages for whole system
 RUN tlmgr init-usertree \
@@ -91,7 +92,29 @@ RUN tlmgr init-usertree \
       ifsym \
       boolexpr \
       pslatex \
-      ulem
+      ulem \
+      wallpaper \
+      eso-pic \
+      extsizes \
+      type1cm \
+      multirow \
+      cite \
+      jknapltx \
+      amsrefs \
+      enumitem \
+      lipsum \
+      comment \
+      changepage \
+      float \
+      sttools \
+      dblfloatfix \
+      footmisc \
+      pageslts \
+      undolabl \
+      varwidth \
+      algorithms \
+      algorithmicx \
+      wrapfig
       
       
 
