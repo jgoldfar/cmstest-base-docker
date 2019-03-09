@@ -28,8 +28,11 @@ export SHELLOPTS:=$(if $(SHELLOPTS),$(SHELLOPTS):)pipefail:errexit
 # Username on Docker Hub
 DOCKER_USERNAME?=jgoldfar
 
-# Base image name for uploaded artifacts
+# Base image name for public uploaded artifacts
 DOCKER_REPO_BASE:=cms-test-image
+
+# Base image name for private uploaded artifacts
+DOCKER_PRIVATE_REPO_BASE:=cms-image-private
 
 # User info for current user (to be duplicated within the docker container:
 # we don't want to run our tests as root.)

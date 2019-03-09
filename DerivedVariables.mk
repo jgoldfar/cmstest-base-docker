@@ -18,6 +18,8 @@ REPORTID?=$(shell ( [ -d "${MainRepoPath}" ] && [ -f "$(HG)" ] ) && ( $(HG) log 
 REPORTDATE:=$(shell ( [ -d "${MainRepoPath}" ] && [ -f "$(HG)" ] ) && ( $(HG) log --cwd $(MainRepoPath) -r "$(REPORTID)" -T '{word(0, date|hgdate)}' ) || echo 0 )
 # The generated main image will have the tag below:
 MAIN_REPO_IMAGE:=${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:main-${REPORTID}
+# The generated main image will be pushed with the tag below:
+MAIN_REPO_IMAGE_PRIVATE:=${DOCKER_USERNAME}/${DOCKER_PRIVATE_REPO_BASE}:main-${REPORTID}
 # Internal path to main repository.
 InternalRepoStem?=Documents-${REPORTID}
 # The repository will be generated into a directory with the name below:

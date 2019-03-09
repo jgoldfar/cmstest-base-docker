@@ -170,6 +170,7 @@ pull-test-and-record:
 	$(MAKE) maybe-update-main-repo
 	$(MAKE) really-test-main
 	$(MAKE) record-test-main
+	$(MAKE) push-main || exit 0
 
 # This target allows you to drop into the built image corresponding to a given REPORTID
 # to debug test failures.

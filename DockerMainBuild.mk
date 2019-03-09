@@ -34,6 +34,11 @@ build-main: Dockerfile.main ${REPO_OUTPUT_PATH}
 		-t ${MAIN_REPO_IMAGE} .
 	$(RM) -r ${REPO_OUTPUT_PATH}
 
+push-main:
+	$(MAKE) main-is-built || ( exho "Main image not yet successfully built. Bailing." ; exit 1)
+	docker tag ${MAIN_REPO_IMAGE} ${MAIN_REPO_IMAGE_PRIVATE}
+	docker push ${MAIN_REPO_IMAGE_PRIVATE}
+
 ${REPO_OUTPUT_PATH}:
 	@[ ! -d "${MainRepoLockDir}" ] || ( echo "${MainRepoPath} Locked. Bailing." ; exit 2 )
 	mkdir "${MainRepoLockDir}" \
