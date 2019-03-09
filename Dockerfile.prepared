@@ -7,10 +7,7 @@ RUN apt-get -qq update \
       wget \
       openssh-client \
       gnuplot \
-      git \
-      mercurial \
-      imagemagick \
-      texlive-font-utils
+      mercurial
 
 # Install LaTeX packages for whole system
 RUN tlmgr init-usertree \

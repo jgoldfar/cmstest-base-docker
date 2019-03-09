@@ -18,7 +18,11 @@ RUN apt-get -qq update \
       autoconf \
       automake \
       gnupg2 \
-      dirmngr
+      dirmngr \
+      freeglut3 \
+      equivs \
+      imagemagick \
+      texlive-font-utils
 
 # 1: Prepare for LaTeX Installation
 #RUN apt-get -qq update \
@@ -31,6 +35,7 @@ RUN apt-get -qq update \
 #      wget
 
 COPY minimal.profile .
+COPY texlive-local.tpl /tmp/tl-equivs/texlive-local.tpl
 
 # Install LaTeX. The user's texmf and texlive directories are initialized.
 RUN curl -L http://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz -o install-tl-unx.tar.gz && \
@@ -38,11 +43,14 @@ RUN curl -L http://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz -
     mkdir -p /data/texmf && chmod a+wrx /data/texmf && \
     mkdir -p /data/texlive && chmod a+wrx /data/texlive && \
     ./install-tl-*/install-tl -profile ./minimal.profile && \
-    rm -rf minimal.profile install-tl-*
+    rm -rf minimal.profile install-tl-* && \
+    cd /tmp/tl-equivs && \
+    equivs-control texlive-local && \
+    mv texlive-local.tpl texlive-local && \
+    equivs-build texlive-local && \
+    dpkg -i texlive-local_*.deb
 
 # Finish LaTeX Installation
-
-
 ENV PATH="/usr/local/texlive/2018/bin/x86_64-linux/:${PATH}"
 
 #RUN apt-get -qq -y remove \
@@ -193,7 +201,6 @@ RUN apt-get -qq -y remove \
       curl \
       wget \
       bzip2 \
-      git \
       texinfo \
       python \
       sbcl \
