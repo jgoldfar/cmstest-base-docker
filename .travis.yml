@@ -1,8 +1,6 @@
 language: generic
 services:
-- docker
+  - docker
 script:
-- echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-- openssl aes-256-cbc -K $encrypted_cf041f225082_key -iv $encrypted_cf041f225082_iv
-  -in id_rsa.enc -out id_rsa -d
-- make base prepared SSH_PRV_KEY_FILE=$(pwd)/id_rsa && rm $(pwd)/id_rsa
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  - make base prepared

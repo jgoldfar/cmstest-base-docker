@@ -197,7 +197,6 @@ RUN set -eux; \
 RUN apt-get -qq -y remove \
       make \
       python \
-      perl \
       curl \
       wget \
       bzip2 \

@@ -31,10 +31,9 @@ base: build-base push-base
 build-prepared: Dockerfile.prepared
 	docker build \
 		-f $< \
-		--build-arg ssh_prv_key="`cat $(SSH_PRV_KEY_FILE)`" \
 		-t ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared .
 
-push-prepared: 
+push-prepared:
 	docker push ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared
 
 .PHONY: prepared build-prepared push-prepared

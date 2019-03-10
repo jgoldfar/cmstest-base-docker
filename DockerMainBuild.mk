@@ -39,6 +39,7 @@ push-main:
 	docker tag ${MAIN_REPO_IMAGE} ${MAIN_REPO_IMAGE_PRIVATE}
 	docker push ${MAIN_REPO_IMAGE_PRIVATE}
 
+.DELETE_ON_ERROR: ${REPO_OUTPUT_PATH}
 ${REPO_OUTPUT_PATH}:
 	@[ ! -d "${MainRepoLockDir}" ] || ( echo "${MainRepoPath} Locked. Bailing." ; exit 2 )
 	mkdir "${MainRepoLockDir}" \
@@ -59,16 +60,33 @@ ${REPO_OUTPUT_PATH}:
 # above.
 .DELETE_ON_ERROR: Dockerfile.main
 .INTERMEDIATE: Dockerfile.main
-Dockerfile.main: Makefile
+Dockerfile.main: Makefile DockerMainBuild.mk ${SSH_PRV_KEY_FILE}
 	@echo "FROM ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared" > $@
 	@echo "" >> $@
 	@echo "MAINTAINER Jonathan Goldfarb <jgoldfar@gmail.com>" >> $@
 	@echo "" >> $@
 	@echo "ADD ./${InternalRepoStem} /${InternalRepoStem}" >> $@
 	@echo "" >> $@
+	@echo " Setup some environment/platform-specific configuration files" > /dev/null
 	@echo "RUN chown -R ${USERINFO} /${InternalRepoStem} \\" >> $@
 	@echo "    && make -C /${InternalRepoStem}/misc/env/bin latex/.chktexrc LATEX_TEMPLATE_INSTALL_ROOT=/${InternalRepoStem} \\" >> $@
-	@echo "    && make -C /${InternalRepoStem}/misc/env/bin latex/.latexmkrc LATEX_TEMPLATE_INSTALL_ROOT=/${InternalRepoStem}" >> $@
+	@echo "    && make -C /${InternalRepoStem}/misc/env/bin latex/.latexmkrc LATEX_TEMPLATE_INSTALL_ROOT=/${InternalRepoStem} \\" >> $@
+	@echo " Setup git repositories to ship along with CMS" > /dev/null
+	@echo "    && apt-get -qq update \\" >> $@
+	@echo "    && apt-get -qq -y --no-install-recommends install openssh-client \\" >> $@
+	@echo "    && mkdir -p /root/.ssh \\" >> $@
+	@echo "    && chmod 0700 /root/.ssh \\" >> $@
+	@echo "    && ssh-keyscan github.com > /root/.ssh/known_hosts \\" >> $@
+	@echo "    && ssh-keyscan bitbucket.org >> /root/.ssh/known_hosts \\" >> $@
+	@echo "    && echo "$(shell cat ${SSH_PRV_KEY_FILE})" > /root/.ssh/id_rsa \\" >> $@
+	@echo "    && chmod 0600 /root/.ssh/id_rsa \\" >> $@
+	@echo "    && make -C /${InternalRepoStem} -f /${InternalRepoStem}/misc/env/pkglists/gitproj.makefile cloneAll GitProjFile=/${InternalRepoStem}/.gitproj BaseDir=/${InternalRepoStem} \\" >> $@
+	@echo "    && rm -f /root/.ssh/id_rsa \\" >> $@
+	@echo " Cleanup afterwards" > /dev/null
+	@echo "    && apt-get -qq -y remove openssh-client \\" >> $@
+	@echo "    && apt-get -qq -y autoremove \\" >> $@
+	@echo "    && apt-get autoclean \\" >> $@
+	@echo "    && rm -rf /var/lib/apt/lists/* /var/log/dpkg.log" >> $@
 	@echo "" >> $@
 	@echo "ENV TEXINPUTS=\"${Internal_TEXINPUTS}\" \\" >> $@
 	@echo "    REPOROOT=\"/${InternalRepoStem}\" \\" >> $@
