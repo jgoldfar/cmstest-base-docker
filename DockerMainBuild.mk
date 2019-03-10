@@ -24,18 +24,19 @@ usage-variables-dockermainbuild:
 #     could have a builder that extracts the repo to a tagged subdirectory of this
 #     one at some point on the future.
 .PHONY: build-main
-build-main: Dockerfile.main ${REPO_OUTPUT_PATH}
+build-main: Dockerfile.main ${REPO_OUTPUT_PATH} ${SSH_PRV_KEY_FILE}
 	@[ ! -d "${MainRepoLockDir}" ] || ( echo "${MainRepoPath} Locked. Bailing." ; exit 1 )
 	@echo "Building ${MAIN_REPO_IMAGE} with $<. Contents:"
 	@cat $<
+	cp ${SSH_PRV_KEY_FILE} ./id_rsa
 	docker build \
 		--no-cache \
 		-f $< \
 		-t ${MAIN_REPO_IMAGE} .
-	$(RM) -r ${REPO_OUTPUT_PATH}
+	$(RM) -r ${REPO_OUTPUT_PATH} ./id_rsa
 
 push-main:
-	$(MAKE) main-is-built || ( exho "Main image not yet successfully built. Bailing." ; exit 1)
+	$(MAKE) main-is-built || ( echo "Main image not yet successfully built. Bailing." ; exit 1)
 	docker tag ${MAIN_REPO_IMAGE} ${MAIN_REPO_IMAGE_PRIVATE}
 	docker push ${MAIN_REPO_IMAGE_PRIVATE}
 
@@ -60,12 +61,13 @@ ${REPO_OUTPUT_PATH}:
 # above.
 .DELETE_ON_ERROR: Dockerfile.main
 .INTERMEDIATE: Dockerfile.main
-Dockerfile.main: Makefile DockerMainBuild.mk ${SSH_PRV_KEY_FILE}
+Dockerfile.main: Makefile DockerMainBuild.mk
 	@echo "FROM ${DOCKER_USERNAME}/${DOCKER_REPO_BASE}:prepared" > $@
 	@echo "" >> $@
 	@echo "MAINTAINER Jonathan Goldfarb <jgoldfar@gmail.com>" >> $@
 	@echo "" >> $@
 	@echo "ADD ./${InternalRepoStem} /${InternalRepoStem}" >> $@
+	@echo "ADD ./id_rsa /id_rsa" >> $@
 	@echo "" >> $@
 	@echo " Setup some environment/platform-specific configuration files" > /dev/null
 	@echo "RUN chown -R ${USERINFO} /${InternalRepoStem} \\" >> $@
@@ -74,15 +76,10 @@ Dockerfile.main: Makefile DockerMainBuild.mk ${SSH_PRV_KEY_FILE}
 	@echo " Setup git repositories to ship along with CMS" > /dev/null
 	@echo "    && apt-get -qq update \\" >> $@
 	@echo "    && apt-get -qq -y --no-install-recommends install openssh-client \\" >> $@
-	@echo "    && mkdir -p /root/.ssh \\" >> $@
-	@echo "    && chmod 0700 /root/.ssh \\" >> $@
-	@echo "    && ssh-keyscan github.com > /root/.ssh/known_hosts \\" >> $@
-	@echo "    && ssh-keyscan bitbucket.org >> /root/.ssh/known_hosts \\" >> $@
-	@echo "    && echo "$(shell cat ${SSH_PRV_KEY_FILE})" > /root/.ssh/id_rsa \\" >> $@
-	@echo "    && chmod 0600 /root/.ssh/id_rsa \\" >> $@
-	@echo "    && make -C /${InternalRepoStem} -f /${InternalRepoStem}/misc/env/pkglists/gitproj.makefile cloneAll GitProjFile=/${InternalRepoStem}/.gitproj BaseDir=/${InternalRepoStem} \\" >> $@
-	@echo "    && rm -f /root/.ssh/id_rsa \\" >> $@
+	@echo "    && make -C /${InternalRepoStem} -f /${InternalRepoStem}/misc/env/pkglists/gitproj.makefile setup IdentityFileCopy=/id_rsa \\" >> $@
+	@echo "    && make -C /${InternalRepoStem} -f /${InternalRepoStem}/misc/env/pkglists/gitproj.makefile cloneAll \\" >> $@
 	@echo " Cleanup afterwards" > /dev/null
+	@echo "    && rm -rf /id_rsa /root/.ssh \\" >> $@
 	@echo "    && apt-get -qq -y remove openssh-client \\" >> $@
 	@echo "    && apt-get -qq -y autoremove \\" >> $@
 	@echo "    && apt-get autoclean \\" >> $@
