@@ -3,4 +3,4 @@ services:
   - docker
 script:
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-  - make base prepared
+  - make prepared

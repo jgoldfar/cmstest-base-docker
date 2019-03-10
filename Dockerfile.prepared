@@ -1,10 +1,230 @@
-FROM jgoldfar/cms-test-image:base
+FROM debian:stretch-slim
 MAINTAINER Jonathan Goldfarb <jgoldfar@my.fit.edu>
+
+# Prepare for all package installation simultaneously
+RUN apt-get -qq update \
+    && apt-get -qq -y --no-install-recommends install \
+      ca-certificates \
+      make \
+      python \
+      perl \
+      curl \
+      wget \
+      bzip2 \
+      git \
+      texinfo \
+      python \
+      sbcl \
+      autoconf \
+      automake \
+      gnupg2 \
+      dirmngr \
+      freeglut3 \
+      equivs \
+      imagemagick \
+      texlive-font-utils
+
+# 1: Prepare for LaTeX Installation
+#RUN apt-get -qq update \
+#    && apt-get -qq -y --no-install-recommends install \
+#      ca-certificates \
+#      make \
+#      python \
+#      perl \
+#      curl \
+#      wget
+
+COPY minimal.profile .
+COPY texlive-local.tpl /tmp/tl-equivs/texlive-local.tpl
+
+# Install LaTeX. The user's texmf and texlive directories are initialized.
+RUN curl -L http://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz -o install-tl-unx.tar.gz && \
+    tar xzf install-tl-unx.tar.gz && \
+    mkdir -p /data/texmf && chmod a+wrx /data/texmf && \
+    mkdir -p /data/texlive && chmod a+wrx /data/texlive && \
+    ./install-tl-*/install-tl -profile ./minimal.profile && \
+    rm -rf minimal.profile install-tl-* && \
+    cd /tmp/tl-equivs && \
+    equivs-control texlive-local && \
+    mv texlive-local.tpl texlive-local && \
+    equivs-build texlive-local && \
+    dpkg -i texlive-local_*.deb
+
+# Finish LaTeX Installation
+ENV PATH="/usr/local/texlive/2018/bin/x86_64-linux/:${PATH}"
+
+#RUN apt-get -qq -y remove \
+#      python \
+#      curl \
+#      wget \
+#    && apt-get -qq -y autoremove \
+#    && apt-get autoclean \
+#    && rm -rf /var/lib/apt/lists/* /var/log/dpkg.log
+
+
+# Prepare for Miniconda 3 Installation
+#RUN apt-get -qq update
+#RUN apt-get -qq -y --no-install-recommends install \
+#      curl \
+#      bzip2
+
+# Install Miniconda3
+RUN curl -sSL https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -o /tmp/miniconda.sh \
+    && bash /tmp/miniconda.sh -bfp /usr/local \
+    && rm -rf /tmp/miniconda.sh \
+    && conda install -y python=3 \
+    && conda update conda \
+    && conda clean --all --yes
+
+# Finish Miniconda3 installation
+#RUN apt-get -qq -y remove \
+#      curl \
+#      bzip2 \
+#    && apt-get -qq -y autoremove \
+#    && apt-get autoclean \
+#    && rm -rf /var/lib/apt/lists/* /var/log/dpkg.log
+
+
+# Prepare Maxima installation
+#RUN apt-get -qq update \
+#    && apt-get -qq -y --no-install-recommends install \
+#      git \
+#      texinfo \
+#      python \
+#      sbcl \
+#      autoconf \
+#      automake
+
+#ENV MaximaPath=/opt/maxima
+
+## Install/Build Maxima
+RUN MaximaPath=/opt/maxima && \
+    mkdir -p ${MaximaPath} && \
+    git clone https://github.com/jgoldfar/maxima-clone.git ${MaximaPath} && \
+    cd ${MaximaPath} && \
+    ./bootstrap && \
+    ./configure --enable-sbcl --enable-sbcl-exec --prefix=/usr/local --enable-quiet-build && \
+    make install > maxima-build.log 2>&1 && \
+    rm -rf ${MaximaPath}
+
+# Finish Maxima installation
+#RUN apt-get -qq -y remove \
+#      git \
+#      texinfo \
+#      python \
+#      sbcl \
+#      autoconf \
+#      automake \
+#    && apt-get -qq -y autoremove \
+#    && apt-get autoclean \
+#    && rm -rf /var/lib/apt/lists/* /var/log/dpkg.log
+
+# Prepare Julia v0.7 installation
+#RUN apt-get -qq update \
+#    && apt-get -qq -y --no-install-recommends install \
+#      curl
+
+ENV JULIA_PATH /usr/local/julia
+ENV PATH=${JULIA_PATH}/bin:${PATH}
+
+# https://julialang.org/downloads/
+ENV JULIA_VERSION 0.7.0
+
+# https://julialang.org/juliareleases.asc
+# Julia (Binary signing key) <buildbot@julialang.org>
+ENV JULIA_GPG 3673DF529D9049477F76B37566E3C7DC03D6E495
+
+# Install Julia v0.7
+RUN set -eux; \
+  \
+  savedAptMark="$(apt-mark showmanual)"; \
+  if ! command -v gpg > /dev/null; then \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+      gnupg2 \
+      dirmngr \
+    ; \
+    rm -rf /var/lib/apt/lists/*; \
+  fi; \
+  \
+# https://julialang.org/downloads/#julia-command-line-version
+# https://julialang-s3.julialang.org/bin/checksums/julia-0.7.0.sha256
+# this "case" statement is generated via "update.sh"
+  dpkgArch="$(dpkg --print-architecture)"; \
+  case "${dpkgArch##*-}" in \
+# amd64
+    amd64) tarArch='x86_64'; dirArch='x64'; sha256='35211bb89b060bfffe81e590b8aeb8103f059815953337453f632db9d96c1bd6' ;; \
+# i386
+    i386) tarArch='i686'; dirArch='x86'; sha256='36a40cf0c4bd8f82c3c8b270ba34bb83af2d545bfbab135e8e496520304cb160' ;; \
+    *) echo >&2 "error: current architecture ($dpkgArch) does not have a corresponding Julia binary release"; exit 1 ;; \
+  esac; \
+  \
+  folder="$(echo "$JULIA_VERSION" | cut -d. -f1-2)"; \
+  curl -fL -o julia.tar.gz.asc "https://julialang-s3.julialang.org/bin/linux/${dirArch}/${folder}/julia-${JULIA_VERSION}-linux-${tarArch}.tar.gz.asc"; \
+  curl -fL -o julia.tar.gz     "https://julialang-s3.julialang.org/bin/linux/${dirArch}/${folder}/julia-${JULIA_VERSION}-linux-${tarArch}.tar.gz"; \
+  \
+  echo "${sha256} *julia.tar.gz" | sha256sum -c -; \
+  \
+  export GNUPGHOME="$(mktemp -d)"; \
+  echo "disable-ipv6" >> $GNUPGHOME/dirmngr.conf ; \
+  ( gpg2 --batch --keyserver ha.pool.sks-keyservers.net --recv-keys "$JULIA_GPG" \
+  || gpg2 --batch --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys "$JULIA_GPG" \
+  || gpg2 --batch --keyserver hkp://pgp.mit.edu:80 --recv-keys "$JULIA_GPG" \
+  || gpg2 --batch --keyserver keyserver.pgp.com --recv-keys "$JULIA_GPG" ) ; \
+  gpg2 --batch --verify julia.tar.gz.asc julia.tar.gz; \
+  command -v gpgconf > /dev/null && gpgconf --kill all; \
+  rm -rf "$GNUPGHOME" julia.tar.gz.asc; \
+  \
+  mkdir "$JULIA_PATH"; \
+  tar -xzf julia.tar.gz -C "$JULIA_PATH" --strip-components 1; \
+  rm julia.tar.gz; \
+  \
+  apt-mark auto '.*' > /dev/null; \
+  [ -z "$savedAptMark" ] || apt-mark manual $savedAptMark; \
+  apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
+  \
+# smoke test
+  julia --version
+
+# Finish Julia v0.7 Installation
+#RUN apt-get -qq -y remove \
+#      curl \
+#    && apt-get -qq -y autoremove \
+#    && apt-get autoclean \
+#    && rm -rf /var/lib/apt/lists/* /var/log/dpkg.log
+
+# Clean up package installation to reduce image size
+RUN apt-get -qq -y remove \
+      python \
+      curl \
+      bzip2 \
+      texinfo \
+      python \
+      sbcl \
+      autoconf \
+      automake \
+      gnupg2 \
+      dirmngr \
+    && apt-get -qq -y autoremove \
+    && apt-get autoclean \
+    && rm -rf /var/lib/apt/lists/* /var/log/dpkg.log
+
+##
+# End Base Image Build
+##
+
+##
+##
+##
+
+
+##
+# Build Prepared Image
+##
+#MAINTAINER Jonathan Goldfarb <jgoldfar@my.fit.edu>
 
 RUN apt-get -qq update \
     && apt-get -qq -y --no-install-recommends install \
-      make \
-      wget \
       gnuplot \
       mercurial
 

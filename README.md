@@ -15,31 +15,17 @@ All processes have access to
 - Miniconda3, and 
 - LaTeX (minimal installation)
 
-The two "fixed" layers are:
-
-* `base` packages listed above (most slowly changing/slowest release cadence)
-
-* `prepared` includes `base` and the minimal set of CTAN packages, git repositories, etc. to compile everything else (these change more slowly, one would hope.)
+The "fixed" layer is the `prepared` image, containing the main dependencies listed above, as well as a minimal set of CTAN packages, git repositories, etc. to compile everything else.
 
 The last layer, `main`, changes for each revision of the repository (and is tagged as such, to allow exploration of previous builds)
 
 Setup
 -----
-You'll need to add your local user to docker group:
-```bash
-sudo usermod -aG docker YOURUSERNAME
-```
+You'll need to install [Docker](https://www.docker.com/) for your platform.
 
 The rest of the build & test commands, etc. are stored in a Makefile.
-Processes can be run and options adjusted on the command line.
-
-Options:
-
-* TBD
-
-Targets/Processes:
-
-* TBD
+Processes can be run and options adjusted on the command line; run `make usage`
+to see what targets and options can be chosen.
 
 Usage:
 -----
@@ -66,8 +52,9 @@ There are a couple other targets that are kind to run regularly:
 
 ## Build/Implementation Details
 
-To build the `prepared` image, you'll need to embed a private SSH key for which the public key is saved to Github and Bitbucket.
-For instance, you may run
+To build the `main` image, you'll need to embed a private SSH key for which the public key is saved to Github and Bitbucket; right now, this is accomplished by using a local key that is copied into the image and deleted after use.
+
+If you need to encrypt a key to e.g. upload this step to a secure service, you can generate a new key by running
 
 ```shell
 ssh-keygen -t rsa -b 4096 -C "jgoldfar+docker@gmail.com" -f id_rsa
