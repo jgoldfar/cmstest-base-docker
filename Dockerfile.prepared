@@ -226,7 +226,8 @@ RUN apt-get -qq -y remove \
 RUN apt-get -qq update \
     && apt-get -qq -y --no-install-recommends install \
       gnuplot \
-      mercurial
+      mercurial \
+      ghostscript
 
 # Install LaTeX packages for whole system
 RUN tlmgr init-usertree \
@@ -330,7 +331,22 @@ RUN tlmgr init-usertree \
       varwidth \
       algorithms \
       algorithmicx \
-      wrapfig
+      wrapfig \
+      bigints \
+      scalerel \
+      stackengine \
+      listofitems \
+      preprint \
+      pdfsync \
+      fontspec \
+      xetex \
+      showlabels \
+      eurosym \
+      xindy \
+      lastpage \
+      newlfm \
+      bibunits \
+      forloop
       
       
 # Setup Julia Package repository

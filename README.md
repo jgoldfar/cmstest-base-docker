@@ -70,3 +70,9 @@ travis encrypy-file id_rsa --add
 
 *Note*: One could explore those repositories without having actual pull access, but this isn't too much of an issue for me, because most of those projects are public or semi-public anyways.
 It's not entirely clear how one would set up the necessary access controls to be able to run code pulled from a private GitHub repo, but not observe it... static package compilation would get you part of the way, but some things will have to be made public at some point.
+
+## Roadmap/TODO
+
+* Fixup Maxima/SBCL installation: see https://github.com/daewok/slime-docker/blob/master/resources/docker-sbcl-seccomp.json and https://github.com/daewok/slime-docker/blob/master/README.md#some-gotchas
+
+* Consider reducing the image size by downloading git archives instead of a full clone: https://stackoverflow.com/questions/3946538/git-clone-just-the-files-please
