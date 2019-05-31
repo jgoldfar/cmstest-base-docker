@@ -18,6 +18,7 @@
 HG:=$(shell which hg)
 PWD:=$(shell pwd)
 UNAME_S:=$(shell uname -s)
+LOCAL_USERNAME:=$(shell id --user --name)
 
 # Set explicit shell
 export SHELL:=/bin/bash
@@ -43,12 +44,15 @@ USERINFO:=$(shell id -u):$(shell id -g)
 Report_Repo_Branch:=${UNAME_S}
 
 # Local path to SSH key authenticated to Github and Bitbucket
-SSH_PRV_KEY_FILE?=${HOME}/.ssh/id_rsa
+SSH_PRV_KEY_FILE?=${HOME}/.ssh/id_github_ci
+
+# Email for CI user (only used to create the private key, if necessary)
+USER_EMAIL:=${DOCKER_USERNAME}+CI@gmail.com
 
 # Local path to updated main repository. We should only be generating these
 # targets on non-CI machines (for now) so this will be empty if CI is not.
 ifeq ($(CI),)
-MainRepoPath?=/Users/jgoldfar/Documents
+MainRepoPath?=/Users/${LOCAL_USERNAME}/Documents
 else
 MainRepoPath?=
 endif
@@ -56,8 +60,11 @@ endif
 # If we're currently using the MainRepo, we'll have a lock directory here:
 MainRepoLockDir:=${MainRepoPath}/.LOCK
 
+# This is the remote URL for the MainRepo
+MainRepoRemote:=ssh://hg@bitbucket.org/jgoldfar/jgoldfar-cms
+
 # Local path to test output directory
-ExternalReportDir?=/Users/jgoldfar/test-${Report_Repo_Branch}
+ExternalReportDir:=/Users/${LOCAL_USERNAME}/test-${Report_Repo_Branch}
 
 # Internal path to test output directory
 InternalReportDir:=/Tests
@@ -118,31 +125,5 @@ include RepoManagement.mk
 # Include main test targets
 include Runtests.mk
 
-
-# This section only exists to clean up in the case of a "bad" interruption in a process
-remove-locks:
-	@( [ -d "${FULL_REPORT_LOCK_DIR}" ] && rmdir ${FULL_REPORT_LOCK_DIR} ) || echo "${FULL_REPORT_DIR} not locked."
-	@( [ -d "${MainRepoLockDir}" ] && rmdir "${MainRepoLockDir}" ) || echo "${MainRepoPath} not locked."
-
-force-cleanup: remove-locks cleanup-main-images
-	$(RM) -r ${FULL_REPORT_DIR}
-
-# This target cleans up generated images. We check if the list is empty to avoid
-# calling docker rmi with an empty argument.
-cleanup-all-images:
-	( \
-		imagesToRemove="$(shell docker images --all --format "{{.Repository}}:{{.Tag}}" | grep '${DOCKER_REPO_BASE}')" ; \
-		[ -z "$${imagesToRemove}" ] && echo "No images to remove" || docker rmi $${imagesToRemove} \
-	)
-	docker system prune --force --volumes
-
-cleanup-main-images:
-	( \
-		imagesToRemove="$(shell docker images --all --format "{{.Repository}}:{{.Tag}}" | grep '${DOCKER_REPO_BASE}:main')" ; \
-		[ -z "$${imagesToRemove}" ] && echo "No images to remove" || docker rmi $${imagesToRemove} \
-	)
-	docker system prune --force --volumes
-
-# Generic (safe) clean target
-clean: cleanup-main-images
-	$(RM) ${PWD}/Documents-*
+# Include cleanup targets
+include Cleanup.mk
