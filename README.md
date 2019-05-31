@@ -1,17 +1,18 @@
-CMS Test Base Docker Image Builder
-=====
+# CMS Test Base Docker Image Builder
 
 [![Docker Pulls](https://img.shields.io/docker/pulls/jgoldfar/cms-test-image.svg)](https://hub.docker.com/r/jgoldfar/cms-test-image/)
 [![Build Status](https://travis-ci.org/jgoldfar/cmstest-base-docker.svg?branch=master)](https://travis-ci.org/jgoldfar/cmstest-base-docker)
 
-This repository handles the creation of isolated test environments and orchestration of tests run against our [CMSTest](https://bitbucket.org/jgoldfar/cmstest.jl/) package, which handles automatic test discovery for "large" heterogeneous repositories.
-Interoperates with [CMSTest](https://bitbucket.org/jgoldfar/cmstest.jl/) v3.0.1+ (i.e. commits newer than revision 6b9245d80691)
+This repository handles the creation of isolated test environments and orchestration of test runners.
+The use-case is "large" heterogeneous repositories with multiple implementation languages and extensive documentation, for which lightweight CI services are likely to fail either at the clone or test phase.
+Though this framework is used in a modified context for local integration testing, for my purposes I have integrated it with [CMSTest](https://bitbucket.org/jgoldfar/cmstest.jl/) v3.0.1+ (i.e. commits newer than revision 6b9245d80691), which automatically discovers some classes of tests already existing in a repository.
+The type of integration test or tests to be run can be modified easily by adjusting the necessary configuration in the `Makefile`.
 
 The images are divided into three parts, intended to correspond roughly to components that change at roughly three rates.
 All processes have access to
 
 - Julia v0.7
-- Maxima (from git) + SBCL
+- Maxima (built from a git checkout against SBCL)
 - Miniconda3, and 
 - LaTeX (minimal installation)
 
@@ -19,16 +20,66 @@ The "fixed" layer is the `prepared` image, containing the main dependencies list
 
 The last layer, `main`, changes for each revision of the repository (and is tagged as such, to allow exploration of previous builds)
 
-Setup
------
-You'll need to install [Docker](https://www.docker.com/) for your platform.
+## Setup
+
+You'll need to install [Docker](https://www.docker.com/) for your platform, and a few other tools before getting started.
+
+The following is the sequence of steps I've used recently to get an installation like this running on a new machine:
+
+- Install git
+
+```shell
+sudo apt-get install git
+```
+
+- Setup your git installation (if necessary), for instance:
+
+```shell
+git config --global user.email "your-email"
+git config --global user.name "Your Name"
+```
+
+If not yet set-up, you'll need to create and add a SSH key for [Github](https://github.com/settings/keys) and [Bitbucket](https://bitbucket.org/account/user/).
+The guide [here](https://help.github.com/en/articles/connecting-to-github-with-ssh) gives step-by-step instructions:
+
+```shell
+ssh-keygen -t rsa -b 4090 -C "your-email" -N "password" -f ${HOME}/.ssh/id_github_ci
+```
+
+For your own purposes, I recommend to create separate keys for your everyday use on each service, and another independent key for use by the CI server.
+This ensures that key invalidation if/when it happens can easily and quickly be mitigated by rotating the given keys.
+
+As a brief aside, the easiest way to ensure these keys are always used by your user is to add them to the ssh configuration file in `~/.ssh/config`.
+For example, if you created a key for bitbucket in `id_bitbucket` and a key for github in `id_github`, you'd create a file with the contents
+
+```
+Host bitbucket.org
+  HostName bitbucket.org
+  IdentityFile /home/username/.ssh/id_bitbucket
+
+Host github.com
+  HostName github.com
+  IdentityFile /home/username/.ssh/id_github
+```
+
+- Clone [this repository](https://github.com/jgoldfar/cmstest-base-docker) somewhere convenient:
+
+```shell
+git clone git@github.com:jgoldfar/cmstest-base-docker.git ~/cmstest
+cd ~/cmstest
+```
+
+- Run the initialization target:
+
+```shell
+make initialization
+```
 
 The rest of the build & test commands, etc. are stored in a Makefile.
 Processes can be run and options adjusted on the command line; run `make usage`
 to see what targets and options can be chosen.
 
-Usage:
------
+## Usage
 
 I run these processes with a cron job on an Ubuntu workstation, but the build steps are replicated (to the extent that they can be) on Travis.
 Only the last image must be built and run on a machine having access to the main repository (which in my case is private) and test output repository.
