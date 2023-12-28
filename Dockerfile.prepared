@@ -1,5 +1,5 @@
 FROM debian:stretch-slim
-MAINTAINER Jonathan Goldfarb <jgoldfar@my.fit.edu>
+MAINTAINER Jonathan Goldfarb <jgoldfar@gmail.com>
 
 # Prepare for all package installation simultaneously
 RUN apt-get -qq update \
@@ -38,7 +38,7 @@ COPY minimal.profile .
 COPY texlive-local.tpl /tmp/tl-equivs/texlive-local.tpl
 
 # Install LaTeX. The user's texmf and texlive directories are initialized.
-RUN curl -L http://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz -o install-tl-unx.tar.gz && \
+RUN curl -L https://mirrors.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz -o install-tl-unx.tar.gz && \
     tar xzf install-tl-unx.tar.gz && \
     mkdir -p /data/texmf && chmod a+wrx /data/texmf && \
     mkdir -p /data/texlive && chmod a+wrx /data/texlive && \
@@ -347,8 +347,8 @@ RUN tlmgr init-usertree \
       newlfm \
       bibunits \
       forloop
-      
-      
+
+
 # Setup Julia Package repository
 ENV JULIA_DEPOT_PATH "/julia"
 
