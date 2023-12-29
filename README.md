@@ -1,11 +1,10 @@
-# CMS Test Base Docker Image Builder
+# CMS Test Base Docker Image Builder (ARCHIVED)
 
 [![Docker Pulls](https://img.shields.io/docker/pulls/jgoldfar/cms-test-image.svg)](https://hub.docker.com/r/jgoldfar/cms-test-image/)
-[![Build Status](https://travis-ci.org/jgoldfar/cmstest-base-docker.svg?branch=master)](https://travis-ci.org/jgoldfar/cmstest-base-docker)
 
-This repository handles the creation of isolated test environments and orchestration of test runners.
-The use-case is "large" heterogeneous repositories with multiple implementation languages and extensive documentation, for which lightweight CI services are likely to fail either at the clone or test phase.
-Though this framework is used in a modified context for local integration testing, for my purposes I have integrated it with [CMSTest](https://bitbucket.org/jgoldfar/cmstest.jl/) v3.0.1+ (i.e. commits newer than revision 6b9245d80691), which automatically discovers some classes of tests already existing in a repository.
+This repository handles the creation of isolated test environments and orchestration of test runners; it is currently archived and only retained for informational purposes.
+
+The use-case is "large" heterogeneous repositories with multiple implementation languages and extensive documentation, for which lightweight CI services have failed either at the clone or test phase.
 The type of integration test or tests to be run can be modified easily by adjusting the necessary configuration in the `Makefile`.
 
 The images are divided into three parts, intended to correspond roughly to components that change at roughly three rates.
@@ -13,7 +12,7 @@ All processes have access to
 
 - Julia v0.7
 - Maxima (built from a git checkout against SBCL)
-- Miniconda3, and 
+- Miniconda3, and
 - LaTeX (minimal installation)
 
 The "fixed" layer is the `prepared` image, containing the main dependencies listed above, as well as a minimal set of CTAN packages, git repositories, etc. to compile everything else.
@@ -88,7 +87,7 @@ Assuming the package is available under `$HOME/Public/cms-image`, it takes only 
 
 ```shell
 # Pull CMS Repository, and if new commits are to be tested, run IWS code
-# test script. 
+# test script.
 */10 * * * * cd $HOME/Public/cms-image && date > testIWS.log && make pull-test-and-record >> testIWS.log 2>&1
 ```
 
@@ -116,7 +115,7 @@ cat id_rsa.pub
 and copy the private key to e.g. an encrypted file that can only be unlocked on Travis using
 
 ```shell
-travis encrypy-file id_rsa --add
+travis encrypt-file id_rsa --add
 ```
 
 *Note*: One could explore those repositories without having actual pull access, but this isn't too much of an issue for me, because most of those projects are public or semi-public anyways.
